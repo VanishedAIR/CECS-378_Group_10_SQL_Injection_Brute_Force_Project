@@ -29,3 +29,13 @@ def dashboard():
         WHERE event_type = 'BRUTE_FORCE_DETECTED'
         """
     ).fetchone()[0]
+
+    # Get the newest security events
+    events = db.execute(
+        """
+        SELECT timestamp, event_type, source_ip, details, detected
+        FROM security_events
+        ORDER BY timestamp DESC
+        LIMIT 20
+        """
+    ).fetchall()
