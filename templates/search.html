@@ -1,1 +1,104 @@
+{% extends "base.html" %}
 
+{% block title %}Search{% endblock %}
+
+{% block content %}
+
+<h1>SQL Injection Demo</h1>
+
+<p>
+    Compare the vulnerable search with the protected search.
+</p>
+
+<div class="search-boxes">
+
+    <!-- Vulnerable search -->
+    <div class="card">
+
+        <h2>Vulnerable Search</h2>
+
+        <p>
+            This search is intentionally unsafe for our local demo.
+        </p>
+
+        <form action="{{ url_for('vulnerable_search') }}" method="GET">
+
+            <input
+                type="text"
+                name="q"
+                placeholder="Search for a product"
+                required
+            >
+
+            <button type="submit">
+                Search
+            </button>
+
+        </form>
+
+    </div>
+
+
+    <!-- Protected search -->
+    <div class="card">
+
+        <h2>Protected Search</h2>
+
+        <p>
+            This search uses a parameterized query.
+        </p>
+
+        <form action="{{ url_for('protected_search') }}" method="GET">
+
+            <input
+                type="text"
+                name="q"
+                placeholder="Search for a product"
+                required
+            >
+
+            <button type="submit">
+                Search
+            </button>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+<!-- Show search results if Flask sends them -->
+{% if results is defined %}
+
+<div class="card">
+
+    <h2>Results</h2>
+
+    {% if results %}
+
+        {% for product in results %}
+
+            <div class="product">
+
+                <strong>{{ product["name"] }}</strong>
+
+                <p>
+                    {{ product["description"] }}
+                </p>
+
+            </div>
+
+        {% endfor %}
+
+    {% else %}
+
+        <p>No products found.</p>
+
+    {% endif %}
+
+</div>
+
+{% endif %}
+
+{% endblock %}
