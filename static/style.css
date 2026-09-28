@@ -1,1 +1,134 @@
+/* Basic page style */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    background-color: #f4f4f4;
+    color: #222;
+}
 
+
+/* Navigation bar */
+nav {
+    background-color: #222;
+    color: white;
+    padding: 15px 30px;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+nav h2 {
+    margin: 0;
+}
+
+nav a {
+    color: white;
+    text-decoration: none;
+    margin-left: 20px;
+}
+
+nav a:hover {
+    text-decoration: underline;
+}
+
+
+/* Main page area */
+main {
+    width: 90%;
+    max-width: 1100px;
+    margin: 30px auto;
+}
+
+
+/* Regular content box */
+.card {
+    background-color: white;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-radius: 6px;
+}
+
+
+/* Forms */
+label {
+    display: block;
+    margin-top: 15px;
+}
+
+input {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    box-sizing: border-box;
+}
+
+button {
+    margin-top: 15px;
+    padding: 10px 20px;
+    cursor: pointer;
+}
+
+
+/* Search page */
+.search-boxes {
+    display: flex;
+    gap: 20px;
+}
+
+.search-boxes .card {
+    flex: 1;
+}
+
+
+/* Dashboard totals */
+.stats {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 25px;
+}
+
+.stat-card {
+    background-color: white;
+    padding: 20px;
+    flex: 1;
+    text-align: center;
+    border-radius: 6px;
+}
+
+.stat-card p {
+    font-size: 30px;
+    font-weight: bold;
+}
+
+
+/* Security event table */
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th,
+td {
+    border-bottom: 1px solid #ddd;
+    padding: 12px;
+    text-align: left;
+}
+
+th {
+    background-color: #eeeeee;
+}
+
+
+/* Login error */
+.error {
+    color: red;
+    font-weight: bold;
+}
+
+
+/* Product search results */
+.product {
+    border-bottom: 1px solid #ddd;
+    padding: 10px 0;
+}
