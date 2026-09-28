@@ -20,3 +20,12 @@ def dashboard():
         WHERE event_type = 'SQLI_ATTEMPT'
         """
     ).fetchone()[0]
+
+    # Count brute force detections
+    brute_force_detections = db.execute(
+        """
+        SELECT COUNT(*)
+        FROM security_events
+        WHERE event_type = 'BRUTE_FORCE_DETECTED'
+        """
+    ).fetchone()[0]
