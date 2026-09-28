@@ -39,3 +39,12 @@ def dashboard():
         LIMIT 20
         """
     ).fetchall()
+
+    # Send everything to dashboard.html
+    return render_template(
+        "dashboard.html",
+        failed_logins=failed_logins,
+        sql_detections=sql_detections,
+        brute_force_detections=brute_force_detections,
+        events=events
+    )
