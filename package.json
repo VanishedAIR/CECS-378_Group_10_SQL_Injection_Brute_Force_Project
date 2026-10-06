@@ -16,7 +16,8 @@
     "start": "node dist/src/server/app.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "db:seed": "tsx scripts/seed-products.ts"
+    "db:seed": "tsx scripts/seed-products.ts",
+    "db:reset": "tsx scripts/reset-lab.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.7",
