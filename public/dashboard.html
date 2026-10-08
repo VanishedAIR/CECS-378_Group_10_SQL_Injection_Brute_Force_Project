@@ -1,1 +1,86 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Dashboard</title>
+
+    <!-- Basic page styling -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th, td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Security Dashboard</h1>
+    <p>This page shows security activity from our application.</p>
+
+    <!-- Shows the login activity -->
+    <div class="card">
+        <h2>Login Activity</h2>
+        <p>Successful Logins: <span id="success">0</span></p>
+        <p>Failed Logins: <span id="failed">0</span></p>
+        <p>Blocked Logins: <span id="blocked">0</span></p>
+    </div>
+
+    <!-- Shows the detected attacks -->
+    <div class="card">
+        <h2>Security Alerts</h2>
+        <p>SQL Injection: <span id="sql">0</span></p>
+        <p>Brute Force: <span id="brute">0</span></p>
+    </div>
+
+    <!-- Shows recent security events -->
+    <div class="card">
+        <h2>Recent Security Events</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Event Type</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+
+            <tbody id="events">
+                <tr>
+                    <td colspan="3">No events loaded yet.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Shows active account cooldowns -->
+    <div class="card">
+        <h2>Active Cooldowns</h2>
+        <p id="cooldowns">No cooldown information loaded yet.</p>
+    </div>
+
+</body>
+</html>
