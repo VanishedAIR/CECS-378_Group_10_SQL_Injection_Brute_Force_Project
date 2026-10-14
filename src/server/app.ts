@@ -7,6 +7,7 @@ import { systemClock, type Clock } from "./clock.js";
 import { loadConfig, resolveProjectPath, type ServerConfig } from "./config.js";
 import { applySchema, closeDatabase, openDatabase } from "./db.js";
 import { attachRequestContext, handleUnexpectedError } from "./http.js";
+import { createSearchRouter } from "./searchRoutes.js";
 
 /** Shared objects future route modules receive. They must not open their own database. */
 export type AppDependencies = {
@@ -23,7 +24,9 @@ export type AppDependencies = {
  */
 export type ModuleRouterFactory = (deps: AppDependencies) => Router;
 
-export const moduleRouters: ModuleRouterFactory[] = [];
+export const moduleRouters: ModuleRouterFactory[] = [
+  createSearchRouter,
+];
 
 export function openLabDatabase(config: ServerConfig): DatabaseSync {
   const db = openDatabase(config.databasePath);
