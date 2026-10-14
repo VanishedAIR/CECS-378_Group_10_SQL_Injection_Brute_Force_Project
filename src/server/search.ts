@@ -4,6 +4,7 @@ import type { RouteMode } from "./audit.js";
 import { insertQueryAudit, insertSecurityEvent } from "./audit.js";
 import { detectSqlInjection } from "./sqlDetector.js";
 import type { DatabaseSync } from "node:sqlite";
+import { withTransaction } from "./db.js";
 
 export type Product = {
   id: number;
@@ -70,6 +71,8 @@ export function executeAuditedSearch(
     errorCode = "SQL_EXECUTION_ERROR";
   }
 
+  
+withTransaction(db, () => {
   const auditId = insertQueryAudit(db, {
     requestId: context.requestId || randomUUID(),
     timestampUtc: context.clock.now(),
@@ -103,6 +106,7 @@ export function executeAuditedSearch(
       },
     });
   }
+});
 
   if (errorCode) {
     throw new Error("Search failed.");
