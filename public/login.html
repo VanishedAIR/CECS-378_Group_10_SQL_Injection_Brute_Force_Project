@@ -1,1 +1,36 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <link rel="stylesheet" href="/style.css">
+    <script src="/client/login.js" defer></script>
+</head>
+<body>
+
+    <main class="dashboard">
+        <div class="card">
+            <h1>Security Lab Login</h1>
+            <p>Use a demo account to log in.</p>
+
+            <!-- Login form -->
+            <form id="login-form">
+                <label for="username">Username</label>
+                <input id="username" type="text" required>
+
+                <label for="password">Password</label>
+                <input id="password" type="password" required>
+
+                <button type="submit">Login</button>
+            </form>
+
+            <!-- Show login results here -->
+            <p id="message"></p>
+        </div>
+    </main>
+
+</body>
+</html>
+
