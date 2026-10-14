@@ -44,6 +44,35 @@ export function createApp(
   app.use(express.json({ limit: "32kb" }));
   app.use(express.static(resolveProjectPath("public")));
 
+    // Serve the public folder
+  app.use(express.static(resolveProjectPath("public")));
+  
+  // Serve our CSS file
+  app.get("/style.css", (_req, res) => {
+      res.sendFile(resolveProjectPath("static/style.css"));
+  });
+  
+  // Serve our browser JavaScript files
+  app.use(
+      "/client",
+      express.static(resolveProjectPath("dist/src/client"))
+  );
+  
+  // Open the login page
+  app.get("/login", (_req, res) => {
+      res.sendFile(resolveProjectPath("public/login.html"));
+  });
+  
+  // Open the search page
+  app.get("/search", (_req, res) => {
+      res.sendFile(resolveProjectPath("public/search.html"));
+  });
+  
+  // Open the dashboard page
+  app.get("/dashboard", (_req, res) => {
+      res.sendFile(resolveProjectPath("public/dashboard.html"));
+  });
+
   // Serve the dashboard CSS file
   app.get("/style.css", (_req, res) => {
       res.sendFile(resolveProjectPath("static/style.css"));
