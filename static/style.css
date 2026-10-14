@@ -132,3 +132,79 @@ th {
     border-bottom: 1px solid #ddd;
     padding: 10px 0;
 }
+
+/* Dashboard page */
+.dashboard {
+    max-width: 1200px;
+    margin: 30px auto;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+}
+
+/* Dashboard summary boxes */
+.stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.stat-card {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    flex: 1;
+    min-width: 150px;
+    text-align: center;
+}
+
+.stat-card p {
+    font-size: 28px;
+    font-weight: bold;
+}
+
+/* Dashboard sections */
+.dashboard .card {
+    background: white;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+}
+
+/* Allow wide tables to scroll */
+.table-scroll {
+    overflow-x: auto;
+}
+
+/* Security activity tables */
+.dashboard table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.dashboard th,
+.dashboard td {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+    text-align: left;
+}
+
+.dashboard th {
+    background: #eee;
+}
+
+/* Buttons */
+.dashboard button {
+    padding: 8px 15px;
+    cursor: pointer;
+}
+
+/* Alert evidence box */
+#alert-details {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    background: #f5f5f5;
+    padding: 15px;
+    border-radius: 5px;
+}
