@@ -6,81 +6,129 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Security Dashboard</title>
 
-    <!-- Basic page styling -->
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            margin: 30px;
-        }
-
-        .card {
-            background: white;
-            padding: 20px;
-            margin-bottom: 15px;
-            border-radius: 8px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-        }
-
-        th, td {
-            padding: 12px;
-            border: 1px solid #ddd;
-            text-align: left;
-        }
-    </style>
+    <!-- Use our existing CSS file -->
+    <link rel="stylesheet" href="/style.css">
+    <script src="/client/dashboard.js" defer></script>
 </head>
-
 <body>
 
-    <h1>Security Dashboard</h1>
-    <p>This page shows security activity from our application.</p>
+    <main class="dashboard">
 
-    <!-- Shows the login activity -->
-    <div class="card">
-        <h2>Login Activity</h2>
-        <p>Successful Logins: <span id="success">0</span></p>
-        <p>Failed Logins: <span id="failed">0</span></p>
-        <p>Blocked Logins: <span id="blocked">0</span></p>
-    </div>
+        <h1>Security Dashboard</h1>
+        <p>View login activity and detected attacks.</p>
 
-    <!-- Shows the detected attacks -->
-    <div class="card">
-        <h2>Security Alerts</h2>
-        <p>SQL Injection: <span id="sql">0</span></p>
-        <p>Brute Force: <span id="brute">0</span></p>
-    </div>
+        <!-- Refresh the security information -->
+        <button id="refresh">Refresh Dashboard</button>
+        <p id="message">Loading dashboard...</p>
 
-    <!-- Shows recent security events -->
-    <div class="card">
-        <h2>Recent Security Events</h2>
+        <!-- Shows the security totals -->
+        <div class="stats">
+            <div class="stat-card">
+                <h3>Successful Logins</h3>
+                <p id="success">0</p>
+            </div>
 
-        <table>
-            <thead>
-                <tr>
-                    <th>Time</th>
-                    <th>Event Type</th>
-                    <th>Details</th>
-                </tr>
-            </thead>
+            <div class="stat-card">
+                <h3>Failed Logins</h3>
+                <p id="failed">0</p>
+            </div>
 
-            <tbody id="events">
-                <tr>
-                    <td colspan="3">No events loaded yet.</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
+            <div class="stat-card">
+                <h3>Blocked Logins</h3>
+                <p id="blocked">0</p>
+            </div>
 
-    <!-- Shows active account cooldowns -->
-    <div class="card">
-        <h2>Active Cooldowns</h2>
-        <p id="cooldowns">No cooldown information loaded yet.</p>
-    </div>
+            <div class="stat-card">
+                <h3>SQL Injection Alerts</h3>
+                <p id="sql">0</p>
+            </div>
+
+            <div class="stat-card">
+                <h3>Brute Force Alerts</h3>
+                <p id="brute">0</p>
+            </div>
+        </div>
+
+        <!-- Shows active account and IP cooldowns -->
+        <section class="card">
+            <h2>Active Cooldowns</h2>
+
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Account / IP</th>
+                            <th>Expires</th>
+                            <th>Seconds Left</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cooldowns">
+                        <tr>
+                            <td colspan="4">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Shows the most recent security alerts -->
+        <section class="card">
+            <h2>Recent Security Alerts</h2>
+
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Event</th>
+                            <th>Scope</th>
+                            <th>Severity</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="alerts">
+                        <tr>
+                            <td colspan="5">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Shows the login attempts -->
+        <section class="card">
+            <h2>Recent Login Attempts</h2>
+
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Username</th>
+                            <th>Source IP</th>
+                            <th>Result</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logins">
+                        <tr>
+                            <td colspan="4">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Shows more information when an alert is clicked -->
+        <section class="card">
+            <h2>Alert Details</h2>
+            <p id="alert-message">
+                Select an alert above to see its evidence.
+            </p>
+            <pre id="alert-details"></pre>
+        </section>
+
+    </main>
 
 </body>
 </html>
