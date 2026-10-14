@@ -44,6 +44,18 @@ export function createApp(
   app.use(express.json({ limit: "32kb" }));
   app.use(express.static(resolveProjectPath("public")));
 
+  // Serve the dashboard CSS file
+  app.get("/style.css", (_req, res) => {
+      res.sendFile(resolveProjectPath("static/style.css"));
+  });
+
+  // Serve the compiled browser TypeScript
+  app.use(
+      "/client",
+      express.static(resolveProjectPath("dist/src/client"))
+  );
+
+  
   app.get("/health", (_req, res) => {
     res.json({ ok: true });
   });
