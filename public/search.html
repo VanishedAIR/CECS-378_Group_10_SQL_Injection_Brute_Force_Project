@@ -1,0 +1,38 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL Search Demo</title>
+    <link rel="stylesheet" href="/style.css">
+    <script src="/client/search.js" defer></script>
+</head>
+<body>
+
+    <main class="dashboard">
+        <h1>SQL Injection Demonstration</h1>
+        <p>Compare the vulnerable and protected searches.</p>
+
+        <div class="card">
+            <label for="search-input">Product Name</label>
+            <input id="search-input" type="text"
+                   placeholder="Enter a product name">
+
+            <!-- Run the two different searches -->
+            <button id="vulnerable">Vulnerable Search</button>
+            <button id="protected">Protected Search</button>
+
+            <p id="message"></p>
+        </div>
+
+        <!-- Show the returned products -->
+        <div class="card">
+            <h2>Search Results</h2>
+            <div id="results"></div>
+        </div>
+
+    </main>
+
+</body>
+</html>
