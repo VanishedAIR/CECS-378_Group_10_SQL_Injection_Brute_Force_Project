@@ -67,27 +67,33 @@ export function createLoginPolicy(db: DatabaseSync, config: ServerConfig, clock:
 
         // The verifier is owned by authentication. It must use bound SQL and check the password.
         const verification = await verify(usernameKey);
+
+        // Refresh the timestamp after asynchronous password verification.
+        // Failure windows, audit records, and new cooldowns must use completion time.
+        const verifiedAt = clock.now();
+
         return withTransaction(db, () => {
+
           const outcome = verification.valid ? "success" as const : "failure" as const;
-          const attemptId = insertLoginAttempt(db, { requestId: request.requestId, timestampUtc: now,
+          const attemptId = insertLoginAttempt(db, { requestId: request.requestId, timestampUtc: verifiedAt,
             usernameKey, sourceIp, userId: verification.userId, outcome, blockedScopes: [] });
           const eventIds: number[] = [];
           if (outcome === "failure") {
             for (const scope of scopes) {
               const column = scope.type === "account" ? "username_key" : "source_ip";
               const rows = db.prepare(`SELECT id FROM login_attempts WHERE ${column} = ? AND outcome = 'failure' AND timestamp_utc > ? AND timestamp_utc <= ? ORDER BY id`)
-                .all(scope.key, now - config.windowSeconds * 1000, now) as AttemptRow[];
+                .all(scope.key, verifiedAt - config.windowSeconds * 1000, verifiedAt) as AttemptRow[];
               const count = rows.length;
               if (count !== scope.limit) continue; // Exactly one alert at threshold crossing.
-              const until = config.loginMode === "protect" ? now + scope.cooldownMs : null;
+              const until = config.loginMode === "protect" ? verifiedAt + scope.cooldownMs : null;
               const eventId = insertSecurityEvent(db, {
-                timestampUtc: now, eventType: "BRUTE_FORCE_DETECTED",
+                timestampUtc: verifiedAt, eventType: "BRUTE_FORCE_DETECTED",
                 ruleId: scope.type === "account" ? "LOGIN_ACCOUNT_FAILURE_LIMIT_V1" : "LOGIN_IP_FAILURE_LIMIT_V1",
                 severity: "medium", scopeType: scope.type, scopeKey: scope.key,
                 triggerLoginAttemptId: attemptId, queryAuditId: null,
-                details: { count, limit: scope.limit, windowStart: now - config.windowSeconds * 1000,
-                  windowEnd: now, loginMode: config.loginMode, attemptIds: rows.map((row) => row.id),
-                  cooldownStart: until === null ? null : now, cooldownUntil: until },
+                details: { count, limit: scope.limit, windowStart: verifiedAt - config.windowSeconds * 1000,
+                  windowEnd: verifiedAt, loginMode: config.loginMode, attemptIds: rows.map((row) => row.id),
+                  cooldownStart: until === null ? null : verifiedAt, cooldownUntil: until },
               });
               eventIds.push(eventId);
               if (until !== null) {
@@ -95,7 +101,7 @@ export function createLoginPolicy(db: DatabaseSync, config: ServerConfig, clock:
                   VALUES (?, ?, ?, ?, ?) ON CONFLICT(scope_type, scope_key) DO UPDATE SET
                   blocked_until = excluded.blocked_until, created_at = excluded.created_at,
                   trigger_event_id = excluded.trigger_event_id`)
-                  .run(scope.type, scope.key, until, now, eventId);
+                  .run(scope.type, scope.key, until, verifiedAt, eventId);
               }
             }
           }
