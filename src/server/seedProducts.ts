@@ -21,7 +21,7 @@ export const SEED_PRODUCTS = [
 
 /**
  * Inserts the three agreed products with fixed IDs.
- * Account seeding waits for Bin's password helper (see context.md section 9.7).
+ * The seed command also seeds accounts; reset uses only these products.
  */
 export function seedProducts(db: DatabaseSync): void {
   const insert = db.prepare(
