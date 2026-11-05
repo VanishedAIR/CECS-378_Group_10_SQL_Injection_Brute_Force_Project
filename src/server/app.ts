@@ -7,13 +7,32 @@ import { systemClock, type Clock } from "./clock.js";
 import { loadConfig, resolveProjectPath, type ServerConfig } from "./config.js";
 import { applySchema, closeDatabase, openDatabase } from "./db.js";
 import { attachRequestContext, handleUnexpectedError } from "./http.js";
+import { createAuthRouter } from "./authRoutes.js";
+import { createSessionStore, type SessionStore } from "./sessions.js";
 
 /** Shared objects future route modules receive. They must not open their own database. */
+
 export type AppDependencies = {
   db: DatabaseSync;
   config: ServerConfig;
   clock: Clock;
+  sessions?: SessionStore;
 };
+
+
+/**
+ * Return the shared session store supplied by createApp().
+ * Route modules should use this instead of creating their own store.
+ */
+export function requireSessionStore(deps: AppDependencies): SessionStore {
+  if (!deps.sessions) {
+    throw new Error(
+      "Shared session store is missing. Register this router through createApp()."
+    );
+  }
+
+  return deps.sessions;
+}
 
 /**
  * Bin, real thd, and Ediz each export a function with this shape and add one
@@ -23,7 +42,11 @@ export type AppDependencies = {
  */
 export type ModuleRouterFactory = (deps: AppDependencies) => Router;
 
-export const moduleRouters: ModuleRouterFactory[] = [];
+
+export const moduleRouters: ModuleRouterFactory[] = [
+  (deps) => createAuthRouter(deps),
+];
+
 
 export function openLabDatabase(config: ServerConfig): DatabaseSync {
   const db = openDatabase(config.databasePath);
@@ -38,7 +61,14 @@ export function createApp(
   const app = express();
   app.set("trust proxy", false);
   app.disable("x-powered-by");
-  app.locals.lab = deps;
+
+  // Share one session store across all routers in this application.
+  const sharedDeps: AppDependencies = {
+    ...deps,
+    sessions: deps.sessions ?? createSessionStore(deps.clock),
+  };
+
+  app.locals.lab = sharedDeps;
 
   app.use(attachRequestContext);
   app.use(express.json({ limit: "32kb" }));
@@ -49,7 +79,7 @@ export function createApp(
   });
 
   for (const factory of [...moduleRouters, ...extraRouters]) {
-    app.use(factory(deps));
+    app.use(factory(sharedDeps));
   }
 
   app.use(handleUnexpectedError);
