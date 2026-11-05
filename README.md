@@ -11,7 +11,9 @@ Local TypeScript/Express + SQLite security lab. Ediz's Flask/Jinja files (`templ
 
 ```powershell
 cd CECS-378_Group_10_SQL_Injection_Brute_Force_Project
-copy .env.example .env
+nvm use 24.21.0
+node --version # must print v24.21.0
+copy .env.example .env # fresh checkout only; preserve an existing .env
 npm ci
 npm run db:seed
 npm run dev
@@ -29,7 +31,7 @@ If PowerShell blocks `npm.ps1`, use `npm.cmd` instead.
 
 `HOST` must be loopback (`127.0.0.1`, `localhost`, or `::1`). `LOGIN_MODE` is `observe` or `protect`. `LAB_MODE` is `true` or `false`. There is no HTTP endpoint that changes these.
 
-`db:seed` creates `./data/lab.db`, applies `schema.sql`, and inserts **Mouse**, **Keyboard**, and **Monitor**. User accounts are **not** seeded. Bin's `hashPassword` must exist before any account seed. `db:reset` clears login, query, alert, and cooldown rows in a transaction and restores those three products. It is a CLI only. Startup does not reset the database.
+`db:seed` creates `./data/lab.db`, applies `schema.sql`, and inserts **Mouse**, **Keyboard**, and **Monitor**. It also creates the two fictional demo accounts below using Bin's `hashPassword`. Existing usernames are reported as **Skipped**: their passwords, display names and roles are preserved, so the documented credentials and expected roles are not guaranteed for those rows. Repeated seeds preserve audit records and cooldowns. `db:reset` clears login, query, alert, and cooldown rows in a transaction and restores those three products. It is a CLI only. Startup does not reset the database.
 
 `db:check:neon` is an optional PostgreSQL connectivity check. The application database remains SQLite.
 
@@ -41,11 +43,61 @@ If PowerShell blocks `npm.ps1`, use `npm.cmd` instead.
 | `npm run build` / `npm start` | Compile, then run `dist/` |
 | `npm run typecheck` | Typecheck without emitting |
 | `npm test` | Vitest |
-| `npm run db:seed` | Apply schema and seed products |
+| `npm run db:seed` | Apply schema and seed products plus missing demo accounts |
 | `npm run db:reset` | Clear evidence and restore products |
 | `npm run db:check:neon` | Optional Neon check (needs `DATABASE_URL` in `.env`) |
 
 Open **http://127.0.0.1:3000/** and **http://127.0.0.1:3000/health**.
+
+## Fictional localhost demo accounts
+
+These public passwords are for this local lab only. Do not reuse real credentials.
+
+| Username | Demo-only password | Role |
+| --- | --- | --- |
+| `demo_user` | `DemoUser123!` | `user` |
+| `demo_admin` | `DemoAdmin123!` | `admin` |
+
+Run `npm run db:seed` before starting the server. It uses `DATABASE_PATH` from the shell, then `.env`, then `./data/lab.db`. It never connects to Neon. Only encoded password hashes enter SQLite; credentials are not printed by the command. If a username is skipped, inspect it and use its existing credentials; seeding never resets it. The broader five-account IP demonstration remains outside this two-account contribution.
+
+Flow to present: **seed command -> password hashing -> SQLite insert -> login lookup**. `db:seed` loads the shared config, opens SQLite and applies the schema. Products and missing accounts seed in one transaction. `requireUsernameKey` normalizes each username; Bin's `hashPassword` generates a salted scrypt hash. A parameterized insert stores the username, display name, hash and role. Bin's login code will look up `users` by normalized `username_key` using a bound parameter, pass the submitted password and `password_hash` to `verifyPassword`, then use the row's ID and role for the session. Login/session routes are still pending on this branch; this seed does not implement them.
+
+### Verify without touching an existing database
+
+Use Node **24.21.0**. The focused tests run the actual seed CLI against temporary SQLite files, check products, both roles and passwords with Bin's verifier, rerun and compare every account and audit row, and check conflicting usernames with different passwords and roles.
+
+```powershell
+nvm use 24.21.0
+node --version
+npm ci
+npm test -- tests/seedAccounts.test.ts
+npm run typecheck
+npm test
+npm run build
+```
+
+For a manual temporary seed and an inspection that never displays hashes:
+
+```powershell
+$savedSeedDatabasePath = $env:DATABASE_PATH
+$demoSeedPath = Join-Path ([System.IO.Path]::GetTempPath()) ("cecs378-demo-" + [guid]::NewGuid() + ".db")
+try {
+  $env:DATABASE_PATH = $demoSeedPath
+  npm run db:seed
+  npm run db:seed # accounts are reported as skipped, never recreated
+  @'
+import { DatabaseSync } from "node:sqlite";
+const db = new DatabaseSync(process.env.DATABASE_PATH, { readOnly: true });
+console.table(db.prepare("SELECT username_key, display_username, role FROM users ORDER BY username_key").all());
+db.close();
+'@ | node --input-type=module
+} finally {
+  $env:DATABASE_PATH = $savedSeedDatabasePath
+  Remove-Item -LiteralPath $demoSeedPath -ErrorAction SilentlyContinue
+}
+```
+
+To inspect the normal local lab database, use the same read-only query with `DATABASE_PATH` set to its SQLite file. It selects only usernames and roles. Keep `.env` and generated database files out of Git.
 
 ## Shared modules for teammates
 
