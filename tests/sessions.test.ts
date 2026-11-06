@@ -1,91 +1,74 @@
 
-import { describe, expect, it } from "vitest";
-import { createFakeClock } from "../src/server/clock.js";
-import {
-  createSessionStore,
-  SESSION_DURATION_MS,
-  type AuthUser,
-} from "../src/server/sessions.js";
+import { describe, expect, it, vi } from "vitest";
+import session from "express-session";
+import { SESSION_DURATION_MS } from "../src/server/sessions.js";
 
-const regularUser: AuthUser = {
-  userId: 1,
-  usernameKey: "alice",
-  role: "user",
-};
-
-const adminUser: AuthUser = {
-  userId: 2,
-  usernameKey: "admin",
-  role: "admin",
-};
-
-describe("In-memory session store", () => {
-  it("creates a session and retrieves the authenticated user", () => {
-    const clock = createFakeClock(1_000_000);
-    const sessions = createSessionStore(clock);
-
-    const token = sessions.create(regularUser);
-
-    expect(token).toMatch(/^[0-9a-f]{64}$/);
-    expect(sessions.get(token)).toEqual(regularUser);
+describe("Express session expiration", () => {
+  it("uses a 30-minute session duration", () => {
+    expect(SESSION_DURATION_MS).toBe(30 * 60 * 1000);
   });
 
-  it("generates unique tokens for separate sessions", () => {
-    const sessions = createSessionStore(createFakeClock(1_000_000));
+  it("keeps a session valid just before expiration and expires it exactly at the boundary", async () => {
+    const startTime = new Date("2026-01-01T12:00:00.000Z");
 
-    const first = sessions.create(regularUser);
-    const second = sessions.create(regularUser);
+    vi.useFakeTimers();
+    vi.setSystemTime(startTime);
 
-    expect(first).not.toBe(second);
-    expect(sessions.get(first)).toEqual(regularUser);
-    expect(sessions.get(second)).toEqual(regularUser);
-  });
+    const store = new session.MemoryStore();
 
-  it("rejects missing, invalid, and unknown tokens", () => {
-    const sessions = createSessionStore(createFakeClock(1_000_000));
+    try {
+      const sessionId = "test-session-id";
 
-    expect(sessions.get("")).toBeNull();
-    expect(sessions.get("invalid-token")).toBeNull();
-    expect(sessions.get("a".repeat(64))).toBeNull();
-  });
+      const testSession = {
+        cookie: Object.assign(new session.Cookie(), {
+  originalMaxAge: SESSION_DURATION_MS,
+  expires: new Date(startTime.getTime() + SESSION_DURATION_MS),
+  httpOnly: true,
+  sameSite: "lax" as const,
+  secure: false,
+}),
+        userId: 1,
+      } as session.SessionData;
 
-  it("expires sessions after the configured duration", () => {
-    const clock = createFakeClock(1_000_000);
-    const sessions = createSessionStore(clock);
+      await new Promise<void>((resolve, reject) => {
+        store.set(sessionId, testSession as session.Session & Partial<session.SessionData>, (error) => {
+          if (error) reject(error);
+          else resolve();
+        });
+      });
 
-    const token = sessions.create(regularUser);
+      vi.setSystemTime(
+        new Date(startTime.getTime() + SESSION_DURATION_MS - 1)
+      );
 
-    clock.advance(SESSION_DURATION_MS - 1);
-    expect(sessions.get(token)).toEqual(regularUser);
+      const justBefore = await new Promise<session.SessionData | undefined>(
+        (resolve, reject) => {
+          store.get(sessionId, (error, value) => {
+            if (error) reject(error);
+            else resolve(value ?? undefined);
+          });
+        }
+      );
 
-    clock.advance(1);
-    expect(sessions.get(token)).toBeNull();
-  });
+      expect(justBefore?.userId).toBe(1);
 
-  it("invalidates a session after logout", () => {
-    const sessions = createSessionStore(createFakeClock(1_000_000));
+      vi.setSystemTime(
+        new Date(startTime.getTime() + SESSION_DURATION_MS)
+      );
 
-    const token = sessions.create(regularUser);
+      const atExpiry = await new Promise<session.SessionData | undefined>(
+        (resolve, reject) => {
+          store.get(sessionId, (error, value) => {
+            if (error) reject(error);
+            else resolve(value ?? undefined);
+          });
+        }
+      );
 
-    sessions.destroy(token);
-
-    expect(sessions.get(token)).toBeNull();
-  });
-
-  it("keeps ordinary-user and admin roles separate", () => {
-    const sessions = createSessionStore(createFakeClock(1_000_000));
-
-    const userToken = sessions.create(regularUser);
-    const adminToken = sessions.create(adminUser);
-
-    expect(sessions.get(userToken)?.role).toBe("user");
-    expect(sessions.get(adminToken)?.role).toBe("admin");
-  });
-
-  it("rejects invalid session durations", () => {
-    const clock = createFakeClock(1_000_000);
-
-    expect(() => createSessionStore(clock, 0)).toThrow();
-    expect(() => createSessionStore(clock, -1000)).toThrow();
+      expect(atExpiry).toBeUndefined();
+    } finally {
+      store.clear();
+      vi.useRealTimers();
+    }
   });
 });

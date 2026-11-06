@@ -1,31 +1,99 @@
 
 import { afterEach, describe, expect, it } from "vitest";
 import express from "express";
+import session from "express-session";
+import { DatabaseSync } from "node:sqlite";
 import type { Server } from "node:http";
-import { createFakeClock } from "../src/server/clock.js";
 import {
   requireAdmin,
   requireSession,
 } from "../src/server/authMiddleware.js";
+import { applySchema } from "../src/server/db.js";
+import { hashPassword } from "../src/server/passwords.js";
 import {
-  createSessionStore,
   SESSION_COOKIE_NAME,
+  SESSION_DURATION_MS,
 } from "../src/server/sessions.js";
 
 const activeServers: Server[] = [];
+const databases: DatabaseSync[] = [];
 
 async function startTestServer() {
-  const clock = createFakeClock(1_000_000);
-  const sessions = createSessionStore(clock);
+  const db = new DatabaseSync(":memory:");
+  databases.push(db);
+  applySchema(db);
+
+  const insertUser = db.prepare(
+    `INSERT INTO users
+     (username_key, display_username, password_hash, role)
+     VALUES (?, ?, ?, ?)`
+  );
+
+  const alice = insertUser.run(
+    "alice",
+    "Alice",
+    hashPassword("test-password"),
+    "user"
+  );
+
+  const admin = insertUser.run(
+    "admin",
+    "Admin",
+    hashPassword("test-password"),
+    "admin"
+  );
+
+  const aliceId = Number(alice.lastInsertRowid);
+  const adminId = Number(admin.lastInsertRowid);
+
   const app = express();
 
-  app.get("/protected", requireSession(sessions), (req, res) => {
+  app.use(
+    session({
+      name: SESSION_COOKIE_NAME,
+      secret: "test-only-session-secret-at-least-32-characters",
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: false,
+        maxAge: SESSION_DURATION_MS,
+      },
+    })
+  );
+
+  // Test-only endpoint for creating a session.
+  // This route exists only in this isolated test server.
+  app.post("/test-login/:userId", (req, res, next) => {
+    const userId = Number(req.params.userId);
+
+    req.session.regenerate((error) => {
+      if (error) {
+        next(error);
+        return;
+      }
+
+      req.session.userId = userId;
+
+      req.session.save((saveError) => {
+        if (saveError) {
+          next(saveError);
+          return;
+        }
+
+        res.status(204).end();
+      });
+    });
+  });
+
+  app.get("/protected", requireSession(db), (req, res) => {
     res.json({ auth: req.auth });
   });
 
   app.get(
     "/admin",
-    requireSession(sessions),
+    requireSession(db),
     requireAdmin,
     (req, res) => {
       res.json({ auth: req.auth });
@@ -47,10 +115,24 @@ async function startTestServer() {
   }
 
   return {
-    clock,
-    sessions,
+    db,
+    aliceId,
+    adminId,
     baseUrl: `http://127.0.0.1:${address.port}`,
   };
+}
+
+async function login(baseUrl: string, userId: number): Promise<string> {
+  const response = await fetch(`${baseUrl}/test-login/${userId}`, {
+    method: "POST",
+  });
+
+  expect(response.status).toBe(204);
+
+  const cookie = response.headers.get("set-cookie");
+  expect(cookie).not.toBeNull();
+
+  return cookie!.split(";")[0];
 }
 
 afterEach(async () => {
@@ -65,6 +147,10 @@ afterEach(async () => {
         })
     )
   );
+
+  for (const db of databases.splice(0)) {
+    db.close();
+  }
 });
 
 describe("Authentication middleware", () => {
@@ -82,7 +168,7 @@ describe("Authentication middleware", () => {
     });
   });
 
-  it("returns 401 for an invalid session token", async () => {
+  it("returns 401 for an invalid session cookie", async () => {
     const { baseUrl } = await startTestServer();
 
     const response = await fetch(`${baseUrl}/protected`, {
@@ -95,43 +181,29 @@ describe("Authentication middleware", () => {
   });
 
   it("allows a valid session and attaches req.auth", async () => {
-    const { baseUrl, sessions } = await startTestServer();
-
-    const token = sessions.create({
-      userId: 10,
-      usernameKey: "alice",
-      role: "user",
-    });
+    const { baseUrl, aliceId } = await startTestServer();
+    const cookie = await login(baseUrl, aliceId);
 
     const response = await fetch(`${baseUrl}/protected`, {
-      headers: {
-        Cookie: `${SESSION_COOKIE_NAME}=${token}`,
-      },
+      headers: { Cookie: cookie },
     });
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       auth: {
-        userId: 10,
+        userId: aliceId,
         usernameKey: "alice",
         role: "user",
       },
     });
   });
 
-  it("returns 403 when an ordinary user accesses an admin route", async () => {
-    const { baseUrl, sessions } = await startTestServer();
-
-    const token = sessions.create({
-      userId: 10,
-      usernameKey: "alice",
-      role: "user",
-    });
+  it("returns 403 when a user accesses an admin route", async () => {
+    const { baseUrl, aliceId } = await startTestServer();
+    const cookie = await login(baseUrl, aliceId);
 
     const response = await fetch(`${baseUrl}/admin`, {
-      headers: {
-        Cookie: `${SESSION_COOKIE_NAME}=${token}`,
-      },
+      headers: { Cookie: cookie },
     });
 
     expect(response.status).toBe(403);
@@ -144,63 +216,50 @@ describe("Authentication middleware", () => {
   });
 
   it("allows administrators to access admin routes", async () => {
-    const { baseUrl, sessions } = await startTestServer();
-
-    const token = sessions.create({
-      userId: 20,
-      usernameKey: "admin",
-      role: "admin",
-    });
+    const { baseUrl, adminId } = await startTestServer();
+    const cookie = await login(baseUrl, adminId);
 
     const response = await fetch(`${baseUrl}/admin`, {
-      headers: {
-        Cookie: `${SESSION_COOKIE_NAME}=${token}`,
-      },
+      headers: { Cookie: cookie },
     });
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       auth: {
-        userId: 20,
+        userId: adminId,
         usernameKey: "admin",
         role: "admin",
       },
     });
   });
 
-  it("returns 401 when a session has expired", async () => {
-    const { baseUrl, sessions, clock } = await startTestServer();
+  it("rejects an administrator after demotion", async () => {
+    const { baseUrl, db, adminId } = await startTestServer();
+    const cookie = await login(baseUrl, adminId);
 
-    const token = sessions.create({
-      userId: 10,
-      usernameKey: "alice",
-      role: "user",
+    const before = await fetch(`${baseUrl}/admin`, {
+      headers: { Cookie: cookie },
+    });
+    expect(before.status).toBe(200);
+
+    db.prepare("UPDATE users SET role = 'user' WHERE id = ?")
+      .run(adminId);
+
+    const after = await fetch(`${baseUrl}/admin`, {
+      headers: { Cookie: cookie },
     });
 
-    clock.advance(60 * 60 * 1000);
-
-    const response = await fetch(`${baseUrl}/protected`, {
-      headers: {
-        Cookie: `${SESSION_COOKIE_NAME}=${token}`,
-      },
-    });
-
-    expect(response.status).toBe(401);
+    expect(after.status).toBe(403);
   });
 
-  it("rejects duplicate session cookies", async () => {
-    const { baseUrl, sessions } = await startTestServer();
+  it("rejects a deleted user with an existing session", async () => {
+    const { baseUrl, db, aliceId } = await startTestServer();
+    const cookie = await login(baseUrl, aliceId);
 
-    const token = sessions.create({
-      userId: 10,
-      usernameKey: "alice",
-      role: "user",
-    });
+    db.prepare("DELETE FROM users WHERE id = ?").run(aliceId);
 
     const response = await fetch(`${baseUrl}/protected`, {
-      headers: {
-        Cookie: `${SESSION_COOKIE_NAME}=${token}; ${SESSION_COOKIE_NAME}=${token}`,
-      },
+      headers: { Cookie: cookie },
     });
 
     expect(response.status).toBe(401);

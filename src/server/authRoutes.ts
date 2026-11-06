@@ -1,17 +1,12 @@
 
+import { SESSION_COOKIE_NAME } from "./sessions.js";
 import express, { type Router } from "express";
-import { requireSessionStore, type AppDependencies } from "./app.js";
-import { requireSession, readSessionToken } from "./authMiddleware.js";
+import type { AppDependencies } from "./app.js";
+import { requireSession } from "./authMiddleware.js";
 import { createLoginPolicy } from "./loginPolicy.js";
 import { requireUsernameKey, validatePasswordLength } from "./normalize.js";
 import { hashPassword, verifyPassword } from "./passwords.js";
-import {
-  createSessionStore,
-  SESSION_COOKIE_NAME,
-  SESSION_DURATION_MS,
-  type AuthUser,
-  type SessionStore,
-} from "./sessions.js";
+import type { AuthUser, PublicUser } from "./sessions.js";
 import { sendJsonError, sourceIpFromRequest } from "./http.js";
 
 
@@ -60,6 +55,7 @@ function requireSameOrigin(
 type UserRow = {
   id: number;
   username_key: string;
+  display_username: string;
   password_hash: string;
   role: "user" | "admin";
 };
@@ -77,26 +73,12 @@ function getDummyHash(): string {
   return dummyHash;
 }
 
-function cookieOptions(req: express.Request) {
-  return {
-    httpOnly: true,
-    sameSite: "strict" as const,
-    secure: req.secure,
-    path: "/",
-    maxAge: SESSION_DURATION_MS,
-  };
-}
-
-/**
- * Supply the same SessionStore to authentication and protected routers.
- * Tests may inject a fake-clock store.
- */
 
 
-export function createAuthRouter(
-  deps: AppDependencies,
-  sessions: SessionStore = requireSessionStore(deps)
-): Router {
+
+
+
+export function createAuthRouter(deps: AppDependencies): Router {
   const router = express.Router();
   const policy = createLoginPolicy(deps.db, deps.config, deps.clock);
 
@@ -121,6 +103,7 @@ export function createAuthRouter(
       }
 
       let authenticatedUser: AuthUser | null = null;
+      let publicUser: PublicUser | null = null;
 
       const decision = await policy.evaluate(
         {
@@ -131,9 +114,9 @@ export function createAuthRouter(
         async (normalizedUsername) => {
           const row = deps.db
             .prepare(
-              `SELECT id, username_key, password_hash, role
-               FROM users
-               WHERE username_key = ?`
+              `SELECT id, username_key, display_username, password_hash, role
+              FROM users
+              WHERE username_key = ?`
             )
             .get(normalizedUsername) as UserRow | undefined;
 
@@ -142,13 +125,21 @@ export function createAuthRouter(
             row?.password_hash ?? getDummyHash()
           );
 
-          if (row && valid) {
-            authenticatedUser = {
-              userId: row.id,
-              usernameKey: row.username_key,
-              role: row.role,
-            };
-          }
+if (row && valid) {
+  authenticatedUser = {
+    userId: row.id,
+    usernameKey: row.username_key,
+    role: row.role,
+  };
+
+  publicUser = {
+    id: row.id,
+    usernameKey: row.username_key,
+    displayUsername: row.display_username,
+    role: row.role,
+  };
+}
+
 
           return {
             valid: Boolean(row && valid),
@@ -157,18 +148,20 @@ export function createAuthRouter(
         }
       );
 
-      if (decision.status === 429) {
-        if (decision.retryAfterSeconds !== null) {
-          res.setHeader("Retry-After", String(decision.retryAfterSeconds));
-        }
-        sendJsonError(
-          res,
-          429,
-          "LOGIN_COOLDOWN",
-          "Login temporarily restricted."
-        );
-        return;
-      }
+
+if (decision.status === 429) {
+  const retryAfterSeconds = decision.retryAfterSeconds ?? 0;
+
+  res.setHeader("Retry-After", String(retryAfterSeconds));
+
+  res.status(429).json({
+    error: "LOGIN_COOLDOWN",
+    message: "Login temporarily restricted.",
+    retryAfterSeconds,
+  });
+  return;
+}
+
 
       if (decision.status !== 200 || !authenticatedUser) {
         sendJsonError(
@@ -180,44 +173,103 @@ export function createAuthRouter(
         return;
       }
 
-      // Replace an existing session when the user logs in again.
-      const previousToken = readSessionToken(req);
 
-      if (previousToken !== null) {
-        sessions.destroy(previousToken);
-      }
+if (!publicUser) {
+  sendJsonError(
+    res,
+    401,
+    "INVALID_CREDENTIALS",
+    "Invalid credentials."
+  );
+  return;
+}
 
-      const token = sessions.create(authenticatedUser);
-      res.cookie(SESSION_COOKIE_NAME, token, cookieOptions(req));
+const loginUser: PublicUser = publicUser;
 
-      res.status(200).json({
-        user: authenticatedUser,
-      });
+// Regenerate the session to prevent session fixation.
+req.session.regenerate((error) => {
+  if (error) {
+    next(error);
+    return;
+  }
+
+  req.session.userId = loginUser.id;
+
+  req.session.save((saveError) => {
+    if (saveError) {
+      next(saveError);
+      return;
+    }
+
+    res.status(200).json({
+      user: loginUser,
+      redirectTo: "/search",
+    });
+  });
+});
+
     } catch (error) {
       next(error);
     }
   });
 
-  router.post("/api/logout", requireSameOrigin, (req, res) => {
-    const token = readSessionToken(req);
 
-    if (token !== null) {
-      sessions.destroy(token);
+router.post("/api/logout", requireSameOrigin, (req, res, next) => {
+  req.session.destroy((error) => {
+    if (error) {
+      next(error);
+      return;
     }
 
     res.clearCookie(SESSION_COOKIE_NAME, {
       httpOnly: true,
-      sameSite: "strict",
-      secure: req.secure,
+      sameSite: "lax",
+      secure: false,
       path: "/",
     });
 
-    res.status(200).json({ ok: true });
+    res.status(204).end();
   });
+});
 
-  router.get("/api/me", requireSession(sessions), (req, res) => {
-    res.status(200).json({ user: req.auth });
-  });
+
+router.get("/api/me", requireSession(deps.db), (req, res, next) => {
+  try {
+    const row = deps.db
+      .prepare(
+        `SELECT id, username_key, display_username, role
+         FROM users
+         WHERE id = ?`
+      )
+      .get(req.auth!.userId) as
+      | {
+          id: number;
+          username_key: string;
+          display_username: string;
+          role: "user" | "admin";
+        }
+      | undefined;
+
+    if (!row) {
+      res.status(401).json({
+        error: "AUTH_REQUIRED",
+        message: "Authentication is required.",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      user: {
+        id: row.id,
+        usernameKey: row.username_key,
+        displayUsername: row.display_username,
+        role: row.role,
+      },
+    });
+  } catch (error) {
+    next(error);
+ }
+});
 
   return router;
 }

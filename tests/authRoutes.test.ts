@@ -1,5 +1,5 @@
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { DatabaseSync } from "node:sqlite";
 import type { Server } from "node:http";
 import { createApp } from "../src/server/app.js";
@@ -7,7 +7,6 @@ import { createFakeClock } from "../src/server/clock.js";
 import type { ServerConfig } from "../src/server/config.js";
 import { applySchema } from "../src/server/db.js";
 import { hashPassword } from "../src/server/passwords.js";
-import { createSessionStore } from "../src/server/sessions.js";
 
 const servers: Server[] = [];
 const databases: DatabaseSync[] = [];
@@ -46,6 +45,7 @@ async function startTestApp() {
     host: "127.0.0.1",
     port: 3000,
     databasePath: ":memory:",
+    sessionSecret: "test-only-session-secret-at-least-32-characters",
     loginMode: "protect",
     labMode: true,
     accountFailureLimit: 5,
@@ -55,13 +55,11 @@ async function startTestApp() {
     ipCooldownSeconds: 60,
   };
 
-  const sessions = createSessionStore(clock);
 
   const app = createApp({
-    db,
-    config,
-    clock,
-    sessions,
+  db,
+  config,
+  clock,
 });
 
 
@@ -81,7 +79,6 @@ async function startTestApp() {
   return {
     db,
     clock,
-    sessions,
     baseUrl: `http://127.0.0.1:${address.port}`,
   };
 }
@@ -105,18 +102,22 @@ describe("Authentication API", () => {
 
     const loginBody = await loginResponse.json();
 
-    expect(loginBody.user).toEqual({
-      userId: 1,
-      usernameKey: "alice",
-      role: "user",
-    });
+    expect(loginBody).toEqual({
+  user: {
+    id: 1,
+    usernameKey: "alice",
+    displayUsername: "Alice",
+    role: "user",
+  },
+  redirectTo: "/search",
+});
 
     const setCookie = loginResponse.headers.get("set-cookie");
 
     expect(setCookie).toBeTruthy();
     expect(setCookie).toContain("lab_session=");
     expect(setCookie).toContain("HttpOnly");
-    expect(setCookie).toContain("SameSite=Strict");
+    expect(setCookie).toContain("SameSite=Lax");
 
     const sessionCookie = setCookie!.split(";")[0];
 
@@ -129,12 +130,13 @@ describe("Authentication API", () => {
     expect(meResponse.status).toBe(200);
 
     expect(await meResponse.json()).toEqual({
-      user: {
-        userId: 1,
-        usernameKey: "alice",
-        role: "user",
-      },
-    });
+  user: {
+    id: 1,
+    usernameKey: "alice",
+    displayUsername: "Alice",
+    role: "user",
+  },
+});
   });
 
   it("rejects an incorrect password without creating a session", async () => {
@@ -240,8 +242,8 @@ describe("Authentication API", () => {
       },
     });
 
-    expect(logoutResponse.status).toBe(200);
-    expect(await logoutResponse.json()).toEqual({ ok: true });
+    expect(logoutResponse.status).toBe(204);
+expect(await logoutResponse.text()).toBe("");
 
     const clearedCookie = logoutResponse.headers.get("set-cookie");
     expect(clearedCookie).toContain("lab_session=");
@@ -264,7 +266,9 @@ describe("Authentication API", () => {
   });
 
   it("rejects an expired session through /api/me", async () => {
-    const { baseUrl, clock } = await startTestApp();
+    vi.useFakeTimers({ toFake: ["Date"] });
+
+    const { baseUrl } = await startTestApp();
 
     // Log in successfully.
     const loginResponse = await fetch(`${baseUrl}/api/login`, {
@@ -294,8 +298,9 @@ describe("Authentication API", () => {
 
     expect(beforeExpiry.status).toBe(200);
 
-    // Advance the fake clock by one hour.
-    clock.advance(60 * 60 * 1000);
+    // Move the system clock forward beyond the session expiration.
+// setSystemTime changes Date.now() without waiting in real time.
+vi.setSystemTime(Date.now() + 60 * 60 * 1000);
 
     // The same session cookie must now be rejected.
     const afterExpiry = await fetch(`${baseUrl}/api/me`, {
@@ -341,11 +346,10 @@ describe("Authentication API", () => {
     expect(blocked.status).toBe(429);
     expect(blocked.headers.get("Retry-After")).toBe("60");
     expect(await blocked.json()).toEqual({
-      error: {
-        code: "LOGIN_COOLDOWN",
-        message: "Login temporarily restricted.",
-      },
-    });
+  error: "LOGIN_COOLDOWN",
+  message: "Login temporarily restricted.",
+  retryAfterSeconds: 60,
+});
 
     // Move past the cooldown without waiting in real time.
     clock.advance(60_000);
@@ -422,12 +426,13 @@ describe("Authentication API", () => {
 
     expect(newSession.status).toBe(200);
     expect(await newSession.json()).toEqual({
-      user: {
-        userId: 1,
-        usernameKey: "alice",
-        role: "user",
-      },
-    });
+  user: {
+    id: 1,
+    usernameKey: "alice",
+    displayUsername: "Alice",
+    role: "user",
+  },
+});
   });
 
   it("rejects cross-origin login and logout requests", async () => {
