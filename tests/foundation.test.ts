@@ -42,6 +42,7 @@ function testConfig(databasePath: string): ServerConfig {
     databasePath,
     host: "127.0.0.1",
     port: 0,
+    sessionSecret: "test-only-session-secret-at-least-32-characters",
   };
 }
 
