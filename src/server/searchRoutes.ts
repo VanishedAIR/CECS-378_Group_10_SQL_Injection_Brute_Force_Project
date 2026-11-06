@@ -32,7 +32,7 @@ export function createSearchRouter(deps: AppDependencies): Router {
 
       const q = req.query.q;
 
-      if (typeof q !== "string" || q.length > 200) {
+      if (typeof q !== "string" || q.length < 1 || q.length > 100) {
         sendJsonError(res, 400, "INVALID_REQUEST", "Invalid search input.");
         return;
       }
@@ -45,7 +45,7 @@ export function createSearchRouter(deps: AppDependencies): Router {
           clock: deps.clock,
         });
 
-        res.json({ rows, resultCount: rows.length });
+        res.json({ mode, rows, resultCount: rows.length });
       } catch {
         sendJsonError(res, 500, "INTERNAL_ERROR", "Search failed.");
       }

@@ -80,7 +80,7 @@ withTransaction(db, () => {
     sourceIp: context.sourceIp,
     routeMode: mode,
     inputExcerpt: q.slice(0, 200),
-    queryTemplate: protectedSql,
+    queryTemplate: mode === "protected" ? protectedSql : unsafeSql,
     parameters: mode === "protected" ? [`%${q}%`] : [],
     labSql: mode === "vulnerable" ? unsafeSql : null,
     resultCount: errorCode ? null : results.length,
