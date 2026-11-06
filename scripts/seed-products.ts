@@ -1,5 +1,6 @@
 import { loadConfig } from "../src/server/config.js";
-import { applySchema, withDatabase } from "../src/server/db.js";
+import { applySchema, withDatabase, withTransaction } from "../src/server/db.js";
+import { seedAccounts } from "../src/server/seedAccounts.js";
 import { seedProducts } from "../src/server/seedProducts.js";
 
 function main(): void {
@@ -7,8 +8,16 @@ function main(): void {
 
   withDatabase(databasePath, (db) => {
     applySchema(db);
-    seedProducts(db);
+    const accounts = withTransaction(db, () => {
+      seedProducts(db);
+      return seedAccounts(db);
+    });
     console.log(`Seeded products into ${databasePath}`);
+    for (const account of accounts) {
+      console.log(account.created
+        ? `Created ${account.username} (${account.role})`
+        : `Skipped ${account.username}: username already exists; password and role unchanged. Demo credentials and expected role (${account.role}) are not guaranteed.`);
+    }
   });
 }
 
