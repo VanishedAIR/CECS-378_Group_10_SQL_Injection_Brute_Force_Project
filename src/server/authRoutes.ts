@@ -1,5 +1,8 @@
 
-import { SESSION_COOKIE_NAME } from "./sessions.js";
+import {
+  SESSION_COOKIE_NAME,
+  SESSION_DURATION_MS,
+} from "./sessions.js";
 import express, { type Router } from "express";
 import type { AppDependencies } from "./app.js";
 import { requireSession } from "./authMiddleware.js";
@@ -155,10 +158,12 @@ if (decision.status === 429) {
   res.setHeader("Retry-After", String(retryAfterSeconds));
 
   res.status(429).json({
-    error: "LOGIN_COOLDOWN",
+  error: {
+    code: "LOGIN_COOLDOWN",
     message: "Login temporarily restricted.",
-    retryAfterSeconds,
-  });
+  },
+  retryAfterSeconds,
+});
   return;
 }
 
@@ -194,6 +199,7 @@ req.session.regenerate((error) => {
   }
 
   req.session.userId = loginUser.id;
+  req.session.expiresAt = Date.now() + SESSION_DURATION_MS;
 
   req.session.save((saveError) => {
     if (saveError) {

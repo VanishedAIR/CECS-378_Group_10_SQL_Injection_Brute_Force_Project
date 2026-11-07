@@ -37,8 +37,15 @@ export function requireSession(db: DatabaseSync): RequestHandler {
 
   return (req: Request, res: Response, next: NextFunction): void => {
     const userId = req.session?.userId;
+    const expiresAt = req.session?.expiresAt;
 
-    if (typeof userId !== "number" || !Number.isSafeInteger(userId)) {
+    if (
+  typeof userId !== "number" ||
+  !Number.isSafeInteger(userId) ||
+  typeof expiresAt !== "number" ||
+  !Number.isSafeInteger(expiresAt) ||
+  Date.now() >= expiresAt
+) {
       sendJsonError(
         res,
         401,

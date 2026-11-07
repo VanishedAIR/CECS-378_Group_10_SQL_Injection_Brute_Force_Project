@@ -271,6 +271,7 @@ expect(await logoutResponse.text()).toBe("");
     const { baseUrl } = await startTestApp();
 
     // Log in successfully.
+    const loginTime = Date.now();
     const loginResponse = await fetch(`${baseUrl}/api/login`, {
       method: "POST",
       headers: {
@@ -289,27 +290,29 @@ expect(await logoutResponse.text()).toBe("");
 
     const sessionCookie = setCookie!.split(";")[0];
 
-    // Verify the session works before expiration.
-    const beforeExpiry = await fetch(`${baseUrl}/api/me`, {
-      headers: {
-        Cookie: sessionCookie,
-      },
-    });
+    // A request 1 millisecond before the absolute expiry must succeed.
 
-    expect(beforeExpiry.status).toBe(200);
+vi.setSystemTime(loginTime + 30 * 60 * 1000 - 1);
 
-    // Move the system clock forward beyond the session expiration.
-// setSystemTime changes Date.now() without waiting in real time.
-vi.setSystemTime(Date.now() + 60 * 60 * 1000);
+const beforeExpiry = await fetch(`${baseUrl}/api/me`, {
+  headers: {
+    Cookie: sessionCookie,
+  },
+});
 
-    // The same session cookie must now be rejected.
-    const afterExpiry = await fetch(`${baseUrl}/api/me`, {
-      headers: {
-        Cookie: sessionCookie,
-      },
-    });
+expect(beforeExpiry.status).toBe(200);
 
-    expect(afterExpiry.status).toBe(401);
+// That request must NOT extend the session's original expiry.
+// Exactly 30 minutes after login, the same cookie must fail.
+vi.setSystemTime(loginTime + 30 * 60 * 1000);
+
+const afterExpiry = await fetch(`${baseUrl}/api/me`, {
+  headers: {
+    Cookie: sessionCookie,
+  },
+});
+
+expect(afterExpiry.status).toBe(401);
     expect(await afterExpiry.json()).toEqual({
       error: {
         code: "AUTH_REQUIRED",
@@ -346,8 +349,10 @@ vi.setSystemTime(Date.now() + 60 * 60 * 1000);
     expect(blocked.status).toBe(429);
     expect(blocked.headers.get("Retry-After")).toBe("60");
     expect(await blocked.json()).toEqual({
-  error: "LOGIN_COOLDOWN",
-  message: "Login temporarily restricted.",
+  error: {
+    code: "LOGIN_COOLDOWN",
+    message: "Login temporarily restricted.",
+  },
   retryAfterSeconds: 60,
 });
 

@@ -75,8 +75,9 @@ async function startTestServer() {
       }
 
       req.session.userId = userId;
+req.session.expiresAt = Date.now() + SESSION_DURATION_MS;
 
-      req.session.save((saveError) => {
+req.session.save((saveError) => {
         if (saveError) {
           next(saveError);
           return;
