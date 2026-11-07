@@ -8,6 +8,7 @@ export type ServerConfig = {
   host: string;
   port: number;
   databasePath: string;
+  sessionSecret?: string;
   loginMode: LoginMode;
   labMode: boolean;
   accountFailureLimit: number;
@@ -107,6 +108,7 @@ export function loadConfig(): ServerConfig {
   const host = normalizeHost(process.env.HOST ?? "127.0.0.1");
   const port = Number(process.env.PORT ?? "3000");
   const databasePath = process.env.DATABASE_PATH ?? "./data/lab.db";
+  const sessionSecret = process.env.SESSION_SECRET?.trim();
 
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error(`Invalid PORT: ${process.env.PORT}`);
@@ -116,6 +118,7 @@ export function loadConfig(): ServerConfig {
     host,
     port,
     databasePath,
+    sessionSecret,
     loginMode: readLoginMode(),
     labMode: readLabMode(),
     accountFailureLimit: readPositiveInt("ACCOUNT_FAILURE_LIMIT", 5),

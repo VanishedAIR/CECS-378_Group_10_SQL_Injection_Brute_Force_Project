@@ -39,6 +39,7 @@ describe("login protection HTTP integration", () => {
       host: "127.0.0.1",
       port: 3000,
       databasePath: ":memory:",
+      sessionSecret: "test-only-session-secret-at-least-32-characters",
       labMode: true,
       loginMode: "protect",
       accountFailureLimit: 5,
