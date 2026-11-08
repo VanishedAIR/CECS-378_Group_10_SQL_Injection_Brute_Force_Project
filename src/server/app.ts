@@ -1,4 +1,6 @@
+import "dotenv/config";
 import express, { type Router } from "express";
+import session from "express-session";
 import type { Server } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,13 +10,22 @@ import { loadConfig, resolveProjectPath, type ServerConfig } from "./config.js";
 import { applySchema, closeDatabase, openDatabase } from "./db.js";
 import { attachRequestContext, handleUnexpectedError } from "./http.js";
 import { createSearchRouter } from "./searchRoutes.js";
+import { createAuthRouter } from "./authRoutes.js";
+import {
+  SESSION_COOKIE_NAME,
+  SESSION_DURATION_MS,
+} from "./sessions.js";
 
 /** Shared objects future route modules receive. They must not open their own database. */
+
+
 export type AppDependencies = {
   db: DatabaseSync;
   config: ServerConfig;
   clock: Clock;
 };
+
+
 
 /**
  * Bin, real thd, and Ediz each export a function with this shape and add one
@@ -25,6 +36,7 @@ export type AppDependencies = {
 export type ModuleRouterFactory = (deps: AppDependencies) => Router;
 
 export const moduleRouters: ModuleRouterFactory[] = [
+  (deps) => createAuthRouter(deps),
   createSearchRouter,
 ];
 
@@ -41,19 +53,47 @@ export function createApp(
   const app = express();
   app.set("trust proxy", false);
   app.disable("x-powered-by");
+
+  const secret = deps.config.sessionSecret;
+
+  if (!secret || secret.length < 32) {
+    throw new Error(
+      "SESSION_SECRET must be configured and contain at least 32 characters."
+    );
+  }
+
   app.locals.lab = deps;
 
   app.use(attachRequestContext);
+
+  app.use(
+    session({
+      name: SESSION_COOKIE_NAME,
+      secret,
+      resave: false,
+      saveUninitialized: false,
+      rolling: false,
+      cookie: {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: false,
+        path: "/",
+        maxAge: SESSION_DURATION_MS,
+      },
+    })
+  );
+
   app.use(express.json({ limit: "32kb" }));
   app.use(express.static(resolveProjectPath("public")));
+
 
   app.get("/health", (_req, res) => {
     res.json({ ok: true });
   });
 
   for (const factory of [...moduleRouters, ...extraRouters]) {
-    app.use(factory(deps));
-  }
+  app.use(factory(deps));
+}
 
   app.use(handleUnexpectedError);
   return app;
