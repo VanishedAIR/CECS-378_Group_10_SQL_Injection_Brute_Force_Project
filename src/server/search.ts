@@ -53,11 +53,14 @@ export function executeAuditedSearch(
   const start = performance.now();
 
   const protectedSql =
-    "SELECT id, name, description FROM products WHERE name LIKE ?";
+  "SELECT id, name, description FROM products WHERE name LIKE ?";
+
+  const vulnerableTemplate =
+  "SELECT id, name, description FROM products WHERE name LIKE '%{q}%'";
 
   const unsafeSql =
-    "SELECT id, name, description FROM products " +
-    "WHERE name LIKE '%" + q + "%'";
+  "SELECT id, name, description FROM products " +
+  "WHERE name LIKE '%" + q + "%'";
 
   let results: Product[] = [];
   let errorCode: string | null = null;
@@ -80,7 +83,7 @@ withTransaction(db, () => {
     sourceIp: context.sourceIp,
     routeMode: mode,
     inputExcerpt: q.slice(0, 200),
-    queryTemplate: mode === "protected" ? protectedSql : unsafeSql,
+    queryTemplate: mode === "protected" ? protectedSql : vulnerableTemplate,
     parameters: mode === "protected" ? [`%${q}%`] : [],
     labSql: mode === "vulnerable" ? unsafeSql : null,
     resultCount: errorCode ? null : results.length,
