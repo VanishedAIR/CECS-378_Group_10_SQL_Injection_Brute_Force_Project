@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Dashboard</title>
+
+    <!-- Use our existing CSS file -->
+    <link rel="stylesheet" href="/style.css">
+    <script type="module" src="/client/dashboard.js"></script>
+</head>
+<body>
+
+    <main class="dashboard">
+
+        <h1>Security Dashboard</h1>
+        <p>View login activity and detected attacks.</p>
+
+        <!-- Refresh the security information -->
+        <button id="refresh">Refresh Dashboard</button>
+        <p id="message">Loading dashboard...</p>
+
+        <!-- Shows the security totals -->
+        <div class="stats">
+            <div class="stat-card">
+                <h3>Successful Logins</h3>
+                <p id="success">0</p>
+            </div>
+
+            <div class="stat-card">
+                <h3>Failed Logins</h3>
+                <p id="failed">0</p>
+            </div>
+
+            <div class="stat-card">
+                <h3>Blocked Logins</h3>
+                <p id="blocked">0</p>
+            </div>
+
+            <div class="stat-card">
+                <h3>SQL Injection Alerts</h3>
+                <p id="sql">0</p>
+            </div>
+
+            <div class="stat-card">
+                <h3>Brute Force Alerts</h3>
+                <p id="brute">0</p>
+            </div>
+        </div>
+
+        <!-- Shows active account and IP cooldowns -->
+        <section class="card">
+            <h2>Active Cooldowns</h2>
+
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Account / IP</th>
+                            <th>Expires</th>
+                            <th>Seconds Left</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cooldowns">
+                        <tr>
+                            <td colspan="4">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Shows the most recent security alerts -->
+        <section class="card">
+            <h2>Recent Security Alerts</h2>
+
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Event</th>
+                            <th>Scope</th>
+                            <th>Severity</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="alerts">
+                        <tr>
+                            <td colspan="5">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Shows the login attempts -->
+        <section class="card">
+            <h2>Recent Login Attempts</h2>
+
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Username</th>
+                            <th>Source IP</th>
+                            <th>Result</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logins">
+                        <tr>
+                            <td colspan="4">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Shows more information when an alert is clicked -->
+        <section class="card">
+            <h2>Alert Details</h2>
+            <p id="alert-message">
+                Select an alert above to see its evidence.
+            </p>
+            <pre id="alert-details"></pre>
+        </section>
+
+    </main>
+
+</body>
+</html>

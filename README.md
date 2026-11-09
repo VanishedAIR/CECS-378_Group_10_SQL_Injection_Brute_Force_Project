@@ -35,11 +35,54 @@ If PowerShell blocks `npm.ps1`, use `npm.cmd` instead.
 
 `db:check:neon` is an optional PostgreSQL connectivity check. The application database remains SQLite.
 
+
+## Frontend and session setup
+
+The application uses TypeScript for the server and browser pages.
+
+### Set up the session secret
+
+1. Copy `.env.example` to `.env` if `.env` does not already exist.
+2. Generate a random secret using:
+
+   `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`
+
+3. Copy the generated value into your local `.env` file:
+
+   `SESSION_SECRET=your_generated_secret_here`
+
+4. Never commit `.env` or share your actual session secret.
+
+The server requires a session secret of at least 32 characters.
+
+### Build the frontend
+
+The browser TypeScript files are:
+
+- `src/client/login.ts`
+- `src/client/search.ts`
+- `src/client/dashboard.ts`
+
+Running `npm run build` compiles these files into `dist/src/client`.
+
+The server serves the compiled JavaScript through `/client`.
+
+Run `npm run dev` to build the frontend and start the server.
+
+### Dashboard access
+
+The security dashboard is available at `/dashboard`.
+
+Only authenticated administrators can access dashboard pages and API endpoints.
+
+Unauthenticated users receive HTTP 401. Regular users receive HTTP 403.
+
+
 ## Commands
 
 | Script | What it does |
 | --- | --- |
-| `npm run dev` | Start the TypeScript server with tsx |
+| `npm run dev` | Build the frontend and start the TypeScript server |
 | `npm run build` / `npm start` | Compile, then run `dist/` |
 | `npm run typecheck` | Typecheck without emitting |
 | `npm test` | Vitest |

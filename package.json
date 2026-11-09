@@ -19,7 +19,8 @@
     "db:seed": "tsx scripts/seed-products.ts",
     "db:reset": "tsx scripts/reset-lab.ts",
     "db:check:neon": "tsx scripts/check-neon.ts",
-    "demo:sql": "tsx scripts/demo-sql.ts"
+    "demo:sql": "tsx scripts/demo-sql.ts",
+    "predev": "npm run build"
   },
   "dependencies": {
     "dotenv": "^16.4.7",
