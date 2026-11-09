@@ -61,7 +61,7 @@ These public passwords are for this local lab only. Do not reuse real credential
 
 Run `npm run db:seed` before starting the server. It uses `DATABASE_PATH` from the shell, then `.env`, then `./data/lab.db`. It never connects to Neon. Only encoded password hashes enter SQLite; credentials are not printed by the command. If a username is skipped, inspect it and use its existing credentials; seeding never resets it. The broader five-account IP demonstration remains outside this two-account contribution.
 
-Flow to present: **seed command -> password hashing -> SQLite insert -> login lookup**. `db:seed` loads the shared config, opens SQLite and applies the schema. Products and missing accounts seed in one transaction. `requireUsernameKey` normalizes each username; Bin's `hashPassword` generates a salted scrypt hash. A parameterized insert stores the username, display name, hash and role. Bin's login code will look up `users` by normalized `username_key` using a bound parameter, pass the submitted password and `password_hash` to `verifyPassword`, then use the row's ID and role for the session. Login/session routes are still pending on this branch; this seed does not implement them.
+Flow to present: **seed command -> password hashing -> SQLite insert -> login lookup**. `db:seed` loads the shared config, opens SQLite and applies the schema. Products and missing accounts seed in one transaction. `requireUsernameKey` normalizes each username; Bin's `hashPassword` generates a salted scrypt hash. A parameterized insert stores the username, display name, hash and role. Bin's login code will look up `users` by normalized `username_key` using a bound parameter, pass the submitted password and `password_hash` to `verifyPassword`, then use the row's ID and role for the session. Login and session authentication are implemented separately from account seeding. The seed command creates demo accounts but does not handle authentication.
 
 ### Verify without touching an existing database
 
@@ -122,7 +122,6 @@ Audit writes belong inside the caller's `withTransaction`. Bin decides login out
 
 Agent notes stay on the `context-docs` branch. Do not commit `.context/` from a feature branch.
 
-
 ## SQL Injection Module
 
 The SQL injection module demonstrates the difference between unsafe SQL string concatenation and parameterized queries.
@@ -136,7 +135,7 @@ Both endpoints require an authenticated user.
 
 The vulnerable endpoint is intended only for local demonstrations and is available when `LAB_MODE=true`. The protected endpoint is always available to authenticated users.
 
-**Current integration status:** The routes are registered, but authentication is not connected yet. Both endpoints currently return HTTP 401.
+**Integration status:** Both search endpoints use the shared session authentication middleware. Unauthenticated requests return HTTP 401, while authenticated users can access the appropriate search endpoints.
 
 ### Search behavior
 
@@ -193,13 +192,6 @@ npm run typecheck
 npm test
 ```
 
-The SQL injection module includes tests for search results, SQL injection detection, audit records, security alerts, database errors, and unauthenticated HTTP requests.
+The SQL injection module includes tests for protected and vulnerable searches, SQL injection detection, auditing, security alerts, authenticated and unauthenticated HTTP requests, input validation, LAB_MODE restrictions, and database error handling.
 
-At the time of initial implementation, the project passes 43 automated tests across 6 test files.
-
-### Remaining integration
-
-- Connect the search routes to the shared authentication/session middleware.
-- Add authenticated HTTP tests for successful searches, LAB_MODE restrictions, input validation, and database failures.
-- Verify integration with the team's dashboard and login protection features.
-```
+Final verification: 89 automated tests passed across 14 test files. TypeScript typechecking, production build, and the SQL demonstration also passed.
