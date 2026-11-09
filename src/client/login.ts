@@ -29,15 +29,31 @@ form.addEventListener("submit", async (event) => {
 
         if (response.ok) {
             // Go to the search page after logging in
-            window.location.href = data.redirectTo;
-        } else {
-            // Show a general error message
-            message.textContent =
-                data.error?.message || "Login failed.";
+            window.location.href = data.redirectTo || "/search";
+            return;
         }
+
+        // Show how long the user has to wait after a cooldown
+        if (response.status === 429) {
+            const seconds = Number(data.retryAfterSeconds);
+
+            if (Number.isFinite(seconds) && seconds > 0) {
+                message.textContent =
+                    `Too many login attempts. Try again in ${Math.ceil(seconds)} seconds.`;
+            } else {
+                message.textContent =
+                    "Too many login attempts. Please try again later.";
+            }
+            return;
+        }
+
+        // Show other login errors
+        message.textContent =
+            (typeof data.error === "object"
+                ? data.error?.message
+                : data.message) || "Login failed.";
 
     } catch {
         message.textContent = "Could not connect to the server.";
     }
 });
-
