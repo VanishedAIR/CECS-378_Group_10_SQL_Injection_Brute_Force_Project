@@ -9,6 +9,7 @@ import { systemClock, type Clock } from "./clock.js";
 import { loadConfig, resolveProjectPath, type ServerConfig } from "./config.js";
 import { applySchema, closeDatabase, openDatabase } from "./db.js";
 import { attachRequestContext, handleUnexpectedError } from "./http.js";
+import { createSearchRouter } from "./searchRoutes.js";
 import { createAuthRouter } from "./authRoutes.js";
 import {
   SESSION_COOKIE_NAME,
@@ -34,11 +35,10 @@ export type AppDependencies = {
  */
 export type ModuleRouterFactory = (deps: AppDependencies) => Router;
 
-
 export const moduleRouters: ModuleRouterFactory[] = [
   (deps) => createAuthRouter(deps),
+  createSearchRouter,
 ];
-
 
 export function openLabDatabase(config: ServerConfig): DatabaseSync {
   const db = openDatabase(config.databasePath);

@@ -46,6 +46,7 @@ If PowerShell blocks `npm.ps1`, use `npm.cmd` instead.
 | `npm run db:seed` | Apply schema and seed products plus missing demo accounts |
 | `npm run db:reset` | Clear evidence and restore products |
 | `npm run db:check:neon` | Optional Neon check (needs `DATABASE_URL` in `.env`) |
+| `npm run demo:sql` | Demonstrate vulnerable/protected searches, auditing, and SQL injection alerts |
 
 Open **http://127.0.0.1:3000/** and **http://127.0.0.1:3000/health**.
 
@@ -60,7 +61,7 @@ These public passwords are for this local lab only. Do not reuse real credential
 
 Run `npm run db:seed` before starting the server. It uses `DATABASE_PATH` from the shell, then `.env`, then `./data/lab.db`. It never connects to Neon. Only encoded password hashes enter SQLite; credentials are not printed by the command. If a username is skipped, inspect it and use its existing credentials; seeding never resets it. The broader five-account IP demonstration remains outside this two-account contribution.
 
-Flow to present: **seed command -> password hashing -> SQLite insert -> login lookup**. `db:seed` loads the shared config, opens SQLite and applies the schema. Products and missing accounts seed in one transaction. `requireUsernameKey` normalizes each username; Bin's `hashPassword` generates a salted scrypt hash. A parameterized insert stores the username, display name, hash and role. Bin's login code will look up `users` by normalized `username_key` using a bound parameter, pass the submitted password and `password_hash` to `verifyPassword`, then use the row's ID and role for the session. Login/session routes are still pending on this branch; this seed does not implement them.
+Flow to present: **seed command -> password hashing -> SQLite insert -> login lookup**. `db:seed` loads the shared config, opens SQLite and applies the schema. Products and missing accounts seed in one transaction. `requireUsernameKey` normalizes each username; Bin's `hashPassword` generates a salted scrypt hash. A parameterized insert stores the username, display name, hash and role. Bin's login code will look up `users` by normalized `username_key` using a bound parameter, pass the submitted password and `password_hash` to `verifyPassword`, then use the row's ID and role for the session. Login and session authentication are implemented separately from account seeding. The seed command creates demo accounts but does not handle authentication.
 
 ### Verify without touching an existing database
 
@@ -120,3 +121,77 @@ moduleRouters.push((deps) => createAuthRouter(deps));
 Audit writes belong inside the caller's `withTransaction`. Bin decides login outcomes and threshold crossings. real thd decides SQL indicators. Ediz reads evidence; he does not invent a second insert path.
 
 Agent notes stay on the `context-docs` branch. Do not commit `.context/` from a feature branch.
+
+## SQL Injection Module
+
+The SQL injection module demonstrates the difference between unsafe SQL string concatenation and parameterized queries.
+
+### Search endpoints
+
+- `GET /api/search/protected?q=Mouse`
+- `GET /api/search/vulnerable?q=Mouse`
+
+Both endpoints require an authenticated user.
+
+The vulnerable endpoint is intended only for local demonstrations and is available when `LAB_MODE=true`. The protected endpoint is always available to authenticated users.
+
+**Integration status:** Both search endpoints use the shared session authentication middleware. Unauthenticated requests return HTTP 401, while authenticated users can access the appropriate search endpoints.
+
+### Search behavior
+
+The vulnerable search directly inserts user input into its SQL statement. This allows a specially crafted input to change the query's meaning.
+
+The protected search uses a parameterized SQLite query, so user input is handled as data rather than executable SQL.
+
+| Search input | Vulnerable results | Protected results |
+| --- | --- | --- |
+| `Mouse` | 1 | 1 |
+| `' OR 1=1 --` | 3 | 0 |
+
+### SQL injection detection
+
+The detector checks search inputs for three indicators:
+
+- `sql_comment`: SQL comment syntax
+- `union_select`: UNION SELECT statements
+- `boolean_tautology`: OR 1=1 patterns
+
+Detection runs on both search modes. A suspicious input can generate an alert even when the protected query prevents exploitation.
+
+### Query auditing and alerts
+
+Each executed search creates a `query_audit` record containing the request ID, user ID, source IP, search mode, input excerpt, result count, duration, and error information.
+
+Detected SQL injection patterns generate a `SQLI_ATTEMPT` security event linked to the corresponding query audit record.
+
+Database execution errors are recorded without exposing SQL statements or stack traces through the API.
+
+### SQL demonstration
+
+Run:
+
+```powershell
+npm run demo:sql
+```
+
+The script creates an in-memory SQLite database, seeds three fictional products, and demonstrates normal searches and SQL injection attempts against both search modes.
+
+Expected totals:
+
+- 4 query audit records
+- 2 SQL injection alerts
+
+The demonstration does not modify the application's persistent database.
+
+### Testing
+
+Run:
+
+```powershell
+npm run typecheck
+npm test
+```
+
+The SQL injection module includes tests for protected and vulnerable searches, SQL injection detection, auditing, security alerts, authenticated and unauthenticated HTTP requests, input validation, LAB_MODE restrictions, and database error handling.
+
+Final verification: 89 automated tests passed across 14 test files. TypeScript typechecking, production build, and the SQL demonstration also passed.
