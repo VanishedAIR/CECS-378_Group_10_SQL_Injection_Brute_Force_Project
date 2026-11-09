@@ -11,6 +11,7 @@ import { systemClock, type Clock } from "./clock.js";
 import { loadConfig, resolveProjectPath, type ServerConfig } from "./config.js";
 import { applySchema, closeDatabase, openDatabase } from "./db.js";
 import { attachRequestContext, handleUnexpectedError } from "./http.js";
+import { createSearchRouter } from "./searchRoutes.js";
 import { createAuthRouter } from "./authRoutes.js";
 import { requireSession, requireAdmin } from "./authMiddleware.js";
 import { createDashboardRouter } from "./dashboard.js";
@@ -29,11 +30,17 @@ export type AppDependencies = {
 // Each teammate can add their own routes here
 export type ModuleRouterFactory = (deps: AppDependencies) => Router;
 
-// Include Bin's authentication routes
+
+
+// Include the team's authentication, search, and dashboard routes
 export const moduleRouters: ModuleRouterFactory[] = [
+  // Bin's authentication routes
   (deps) => createAuthRouter(deps),
 
-  // Only protect dashboard API routes
+  // SQL injection search routes
+  createSearchRouter,
+
+  // Dashboard routes for administrators
   (deps) => {
     const router = express.Router();
 
@@ -50,6 +57,8 @@ export const moduleRouters: ModuleRouterFactory[] = [
 ];
 
 // Open the database and set up the tables
+
+
 export function openLabDatabase(config: ServerConfig): DatabaseSync {
   const db = openDatabase(config.databasePath);
   applySchema(db);

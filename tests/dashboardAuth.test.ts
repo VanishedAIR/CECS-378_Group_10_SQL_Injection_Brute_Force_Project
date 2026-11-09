@@ -9,6 +9,7 @@ import { applySchema } from "../src/server/db.js";
 import { requireSession, requireAdmin } from "../src/server/authMiddleware.js";
 import { createDashboardRouter } from "../src/server/dashboard.js";
 import type { AppDependencies } from "../src/server/app.js";
+import { SESSION_DURATION_MS } from "../src/server/sessions.js";
 
 const servers: Server[] = [];
 const databases: DatabaseSync[] = [];
@@ -59,7 +60,9 @@ async function startTestServer() {
         return;
       }
 
+            // Create a valid session for this test user
       req.session.userId = Number(req.params.id);
+      req.session.expiresAt = Date.now() + SESSION_DURATION_MS;
 
       req.session.save((saveError) => {
         if (saveError) {

@@ -1,6 +1,7 @@
 
 import "express-session";
 
+
 export type AuthUser = {
   userId: number;
   usernameKey: string;
@@ -20,5 +21,6 @@ export const SESSION_DURATION_MS = 30 * 60 * 1000;
 declare module "express-session" {
   interface SessionData {
     userId?: number;
+    expiresAt?: number;
   }
 }
