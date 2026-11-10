@@ -1,14 +1,11 @@
 import type { DatabaseSync } from "node:sqlite";
-
 export const SCHEMA_VERSION = 2;
-
 const META_TABLE_SQL = `
 CREATE TABLE IF NOT EXISTS lab_schema_meta (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
 `;
-
 const SECURITY_EVENT_INSERT_TRIGGER = `
 CREATE TRIGGER IF NOT EXISTS security_events_validate_insert
 BEFORE INSERT ON security_events
@@ -39,7 +36,6 @@ BEGIN
     );
 END;
 `;
-
 const SECURITY_EVENT_UPDATE_TRIGGER = `
 CREATE TRIGGER IF NOT EXISTS security_events_validate_update
 BEFORE UPDATE ON security_events
@@ -70,47 +66,40 @@ BEGIN
     );
 END;
 `;
-
+/** Read the recorded migration version; treat missing or malformed metadata as version zero. */
 function readSchemaVersion(db: DatabaseSync): number {
-  const row = db
-    .prepare("SELECT value FROM lab_schema_meta WHERE key = 'schema_version'")
-    .get() as { value: string } | undefined;
-
-  if (!row) {
-    return 0;
-  }
-
-  const parsed = Number(row.value);
-  return Number.isInteger(parsed) ? parsed : 0;
+    const row = db
+        .prepare("SELECT value FROM lab_schema_meta WHERE key = 'schema_version'")
+        .get() as {
+        value: string;
+    } | undefined;
+    if (!row) {
+        return 0;
+    }
+    const parsed = Number(row.value);
+    return Number.isInteger(parsed) ? parsed : 0;
 }
-
+/** Record a completed version using a bound upsert. */
 function writeSchemaVersion(db: DatabaseSync, version: number): void {
-  db.prepare(
-    `INSERT INTO lab_schema_meta (key, value) VALUES ('schema_version', ?)
-     ON CONFLICT(key) DO UPDATE SET value = excluded.value`
-  ).run(String(version));
+    db.prepare(`INSERT INTO lab_schema_meta (key, value) VALUES ('schema_version', ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`).run(String(version));
 }
-
-/** Adds validation triggers to existing databases without dropping data. */
+/** Install insert/update evidence checks on older databases without rebuilding their tables. */
 function migrateToVersion2(db: DatabaseSync): void {
-  db.exec(SECURITY_EVENT_INSERT_TRIGGER);
-  db.exec(SECURITY_EVENT_UPDATE_TRIGGER);
+    db.exec(SECURITY_EVENT_INSERT_TRIGGER);
+    db.exec(SECURITY_EVENT_UPDATE_TRIGGER);
 }
-
-/**
- * Applies base tables, then incremental migrations. Never drops user data.
- */
+/** Create migration metadata and install missing validation triggers. Base tables must already exist. */
 export function runSchemaMigrations(db: DatabaseSync): void {
-  db.exec(META_TABLE_SQL);
-
-  const current = readSchemaVersion(db);
-  if (current < 2) {
-    migrateToVersion2(db);
-    writeSchemaVersion(db, 2);
-  }
+    db.exec(META_TABLE_SQL);
+    const current = readSchemaVersion(db);
+    if (current < 2) {
+        migrateToVersion2(db);
+        writeSchemaVersion(db, 2);
+    }
 }
-
+/** Ensure the metadata table exists and return its recorded version. */
 export function getSchemaVersion(db: DatabaseSync): number {
-  db.exec(META_TABLE_SQL);
-  return readSchemaVersion(db);
+    db.exec(META_TABLE_SQL);
+    return readSchemaVersion(db);
 }

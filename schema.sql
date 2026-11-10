@@ -2,6 +2,7 @@
 
 PRAGMA foreign_keys = ON;
 
+-- Credentials are encoded by the shared password helper; roles are constrained here.
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username_key TEXT NOT NULL UNIQUE,
@@ -55,6 +56,7 @@ CREATE TABLE IF NOT EXISTS query_audit (
 CREATE INDEX IF NOT EXISTS idx_query_audit_timestamp
   ON query_audit (timestamp_utc);
 
+-- Each alert has exactly one evidence source. Migrations add checks for older tables too.
 CREATE TABLE IF NOT EXISTS security_events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   timestamp_utc INTEGER NOT NULL,
@@ -79,6 +81,7 @@ CREATE TABLE IF NOT EXISTS security_events (
 CREATE INDEX IF NOT EXISTS idx_security_events_timestamp
   ON security_events (timestamp_utc);
 
+-- One current cooldown per normalized account or socket-IP scope; alerts retain past timing.
 CREATE TABLE IF NOT EXISTS cooldowns (
   scope_type TEXT NOT NULL CHECK (scope_type IN ('account', 'ip')),
   scope_key TEXT NOT NULL,
