@@ -1,133 +1,384 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Security Dashboard</title>
-
-    <!-- Use our existing CSS file -->
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>
+      Security investigation - Northstar Supply
+    </title>
     <link rel="stylesheet" href="/style.css">
-    <script type="module" src="/client/dashboard.js"></script>
-</head>
-<body>
-
-    <main class="dashboard">
-
-        <h1>Security Dashboard</h1>
-        <p>View login activity and detected attacks.</p>
-
-        <!-- Refresh the security information -->
-        <button id="refresh">Refresh Dashboard</button>
-        <p id="message">Loading dashboard...</p>
-
-        <!-- Shows the security totals -->
-        <div class="stats">
-            <div class="stat-card">
-                <h3>Successful Logins</h3>
-                <p id="success">0</p>
-            </div>
-
-            <div class="stat-card">
-                <h3>Failed Logins</h3>
-                <p id="failed">0</p>
-            </div>
-
-            <div class="stat-card">
-                <h3>Blocked Logins</h3>
-                <p id="blocked">0</p>
-            </div>
-
-            <div class="stat-card">
-                <h3>SQL Injection Alerts</h3>
-                <p id="sql">0</p>
-            </div>
-
-            <div class="stat-card">
-                <h3>Brute Force Alerts</h3>
-                <p id="brute">0</p>
-            </div>
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <script type="module" src="/client/dashboard.js">
+    </script>
+  </head>
+  <body data-page="dashboard">
+    <a class="skip-link" href="#main">
+      Skip to content
+    </a>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="/">
+          <span class="brand-mark" aria-hidden="true">
+            NS
+          </span>
+          <span>
+            Northstar
+            <strong>
+              Supply
+            </strong>
+            <small>
+              CECS 378, Group 10
+            </small>
+          </span>
+        </a>
+        <nav aria-label="Main navigation">
+          <a href="/search">
+            Catalog
+          </a>
+          <a id="admin-link" href="/dashboard" hidden aria-current="page">
+            Investigation
+          </a>
+        </nav>
+        <div class="account">
+          <span id="identity" class="identity">
+            Checking session...
+          </span>
+          <button id="logout" class="button secondary" type="button">
+            Sign out
+          </button>
         </div>
-
-        <!-- Shows active account and IP cooldowns -->
-        <section class="card">
-            <h2>Active Cooldowns</h2>
-
-            <div class="table-scroll">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Type</th>
-                            <th>Account / IP</th>
-                            <th>Expires</th>
-                            <th>Seconds Left</th>
-                        </tr>
-                    </thead>
-                    <tbody id="cooldowns">
-                        <tr>
-                            <td colspan="4">Loading...</td>
-                        </tr>
-                    </tbody>
-                </table>
+      </div>
+    </header>
+    <main id="main" class="page">
+      <div class="session-bar">
+        <p id="session-message" class="notice error" role="alert" hidden>
+        </p>
+        <a id="sign-in-again" href="/login" hidden>
+          Sign in again
+        </a>
+      </div>
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">
+            ADMINISTRATOR / SECURITY OPERATIONS
+          </p>
+          <h1>
+            Security investigation
+          </h1>
+          <p class="lead">
+            Follow activity from a request to its evidence.
+          </p>
+        </div>
+        <div class="heading-actions">
+          <span id="mode" class="badge info">
+            Policy mode
+          </span>
+          <button id="refresh" class="button" type="button">
+            Refresh snapshot
+          </button>
+        </div>
+      </div>
+      <p id="message" class="notice" role="status" aria-live="polite">
+        Checking access...
+      </p>
+      <div id="report" aria-busy="true">
+        <div class="section-heading">
+          <h2>
+            Retained-history overview
+          </h2>
+          <span id="snapshot-time" class="muted">
+            No snapshot
+          </span>
+        </div>
+        <p class="help">
+          Totals include all retained history since reset. Cards filter only the recent records loaded below; they do not fetch the full history.
+        </p>
+        <div class="metric-grid">
+          <button type="button" class="metric success" data-metric="success" aria-pressed="false">
+            <span>
+              Successful logins
+            </span>
+            <strong data-total="successfulLogins">
+              Not loaded
+            </strong>
+            <small>
+              Filter recent logins
+            </small>
+          </button>
+          <button type="button" class="metric failure" data-metric="failure" aria-pressed="false">
+            <span>
+              Failed credentials
+            </span>
+            <strong data-total="failedLogins">
+              Not loaded
+            </strong>
+            <small>
+              Filter recent logins
+            </small>
+          </button>
+          <button type="button" class="metric warning" data-metric="blocked" aria-pressed="false">
+            <span>
+              Blocked logins
+            </span>
+            <strong data-total="blockedLogins">
+              Not loaded
+            </strong>
+            <small>
+              Filter recent logins
+            </small>
+          </button>
+          <button type="button" class="metric info" data-metric="sql" aria-pressed="false">
+            <span>
+              SQL pattern alerts
+            </span>
+            <strong data-total="sqlInjectionAlerts">
+              Not loaded
+            </strong>
+            <small>
+              Filter recent alerts
+            </small>
+          </button>
+          <button type="button" class="metric warning" data-metric="brute" aria-pressed="false">
+            <span>
+              Brute-force alerts
+            </span>
+            <strong data-total="bruteForceAlerts">
+              Not loaded
+            </strong>
+            <small>
+              Filter recent alerts
+            </small>
+          </button>
+          <button type="button" class="metric warning" data-metric="account" aria-pressed="false">
+            <span>
+              Account-scope alerts
+            </span>
+            <strong data-total="accountBruteForceAlerts">
+              Not loaded
+            </strong>
+            <small>
+              Filter recent alerts
+            </small>
+          </button>
+          <button type="button" class="metric warning" data-metric="ip" aria-pressed="false">
+            <span>
+              IP-scope alerts
+            </span>
+            <strong data-total="ipBruteForceAlerts">
+              Not loaded
+            </strong>
+            <small>
+              Filter recent alerts
+            </small>
+          </button>
+          <div class="metric">
+            <span>
+              Audited searches
+            </span>
+            <strong data-total="searchQueries">
+              Not loaded
+            </strong>
+            <small>
+              Retained history. View details through linked alerts.
+            </small>
+          </div>
+        </div>
+        <section class="panel" aria-labelledby="filter-heading">
+          <div class="section-heading">
+            <h2 id="filter-heading">
+              Explore recent records
+            </h2>
+            <button id="clear-filters" class="button secondary small" type="button">
+              Clear filters
+            </button>
+          </div>
+          <div class="filter-grid">
+            <div>
+              <label for="record-search">
+                Search loaded records
+              </label>
+              <input id="record-search" type="search" placeholder="Username, IP, rule, scope or ID">
             </div>
-        </section>
-
-        <!-- Shows the most recent security alerts -->
-        <section class="card">
-            <h2>Recent Security Alerts</h2>
-
-            <div class="table-scroll">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>Event</th>
-                            <th>Scope</th>
-                            <th>Severity</th>
-                            <th>Details</th>
-                        </tr>
-                    </thead>
-                    <tbody id="alerts">
-                        <tr>
-                            <td colspan="5">Loading...</td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div>
+              <label for="alert-kind">
+                Alert type
+              </label>
+              <select id="alert-kind">
+                <option value="all">
+                  All alert types
+                </option>
+                <option value="SQLI_ATTEMPT">
+                  SQL patterns
+                </option>
+                <option value="BRUTE_FORCE_DETECTED">
+                  Brute force
+                </option>
+              </select>
             </div>
-        </section>
-
-        <!-- Shows the login attempts -->
-        <section class="card">
-            <h2>Recent Login Attempts</h2>
-
-            <div class="table-scroll">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>Username</th>
-                            <th>Source IP</th>
-                            <th>Result</th>
-                        </tr>
-                    </thead>
-                    <tbody id="logins">
-                        <tr>
-                            <td colspan="4">Loading...</td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div>
+              <label for="alert-scope">
+                Alert scope
+              </label>
+              <select id="alert-scope">
+                <option value="all">
+                  All scopes
+                </option>
+                <option value="account">
+                  Account
+                </option>
+                <option value="ip">
+                  IP address
+                </option>
+                <option value="request">
+                  Search request
+                </option>
+              </select>
             </div>
+            <div>
+              <label for="login-outcome">
+                Login outcome
+              </label>
+              <select id="login-outcome">
+                <option value="all">
+                  All outcomes
+                </option>
+                <option value="success">
+                  Success
+                </option>
+                <option value="failure">
+                  Failed credentials
+                </option>
+                <option value="blocked">
+                  Blocked by cooldown
+                </option>
+              </select>
+            </div>
+          </div>
+          <p id="filter-label" class="help" aria-live="polite">
+            Recent-record filters: all records.
+          </p>
+          <p class="help">
+            Each list loads at most the newest 20 records. Text searches only the displayed summary fields, not SQL bodies or older records.
+          </p>
         </section>
-
-        <!-- Shows more information when an alert is clicked -->
-        <section class="card">
-            <h2>Alert Details</h2>
-            <p id="alert-message">
-                Select an alert above to see its evidence.
-            </p>
-            <pre id="alert-details"></pre>
+        <section class="panel" aria-labelledby="alert-heading">
+          <div class="section-heading">
+            <h2 id="alert-heading" tabindex="-1">
+              Recent security alerts
+            </h2>
+            <span id="alert-count" class="muted" aria-live="polite">
+              No records loaded
+            </span>
+          </div>
+          <div class="table-scroll" role="region" aria-label="Recent alerts" tabindex="0">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">
+                    Recorded
+                  </th>
+                  <th scope="col">
+                    Alert
+                  </th>
+                  <th scope="col">
+                    Scope
+                  </th>
+                  <th scope="col">
+                    Severity
+                  </th>
+                  <th scope="col">
+                    Evidence
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="alerts">
+              </tbody>
+            </table>
+          </div>
         </section>
-
+        <section id="detail-panel" class="panel detail-panel" aria-labelledby="detail-title" hidden>
+          <div class="section-heading">
+            <h2 id="detail-title" tabindex="-1">
+              Alert details
+            </h2>
+            <button id="close-detail" class="button secondary small" type="button">
+              Close evidence
+            </button>
+          </div>
+          <p id="alert-message" class="notice" role="status">
+          </p>
+          <div id="alert-details">
+          </div>
+        </section>
+        <section class="panel" aria-labelledby="login-heading">
+          <div class="section-heading">
+            <h2 id="login-heading" tabindex="-1">
+              Recent login attempts
+            </h2>
+            <span id="login-count" class="muted" aria-live="polite">
+              No records loaded
+            </span>
+          </div>
+          <div class="table-scroll" role="region" aria-label="Recent login attempts" tabindex="0">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">
+                    Recorded
+                  </th>
+                  <th scope="col">
+                    Username
+                  </th>
+                  <th scope="col">
+                    Source IP
+                  </th>
+                  <th scope="col">
+                    Outcome
+                  </th>
+                  <th scope="col">
+                    Blocked scopes
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="logins">
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section class="panel" aria-labelledby="cooldown-heading">
+          <h2 id="cooldown-heading">
+            Cooldowns at capture
+          </h2>
+          <p class="help">
+            Refresh for current state. Expiry uses the server's clock; durations below are from this snapshot.
+          </p>
+          <div class="table-scroll" role="region" aria-label="Cooldowns" tabindex="0">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">
+                    Scope
+                  </th>
+                  <th scope="col">
+                    Expires
+                  </th>
+                  <th scope="col">
+                    Remaining at capture
+                  </th>
+                  <th scope="col">
+                    Trigger
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="cooldowns">
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
     </main>
-
-</body>
+    <footer class="site-footer">
+      Northstar Supply is fictional. This local security demonstration uses SQLite. No real customer data.
+    </footer>
+  </body>
 </html>

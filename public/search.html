@@ -1,38 +1,132 @@
-
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SQL Search Demo</title>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>
+      Product catalog - Northstar Supply
+    </title>
     <link rel="stylesheet" href="/style.css">
-    <script type="module" src="/client/search.js"></script>
-</head>
-<body>
-
-    <main class="dashboard">
-        <h1>SQL Injection Demonstration</h1>
-        <p>Compare the vulnerable and protected searches.</p>
-
-        <div class="card">
-            <label for="search-input">Product Name</label>
-            <input id="search-input" type="text"
-                   placeholder="Enter a product name">
-
-            <!-- Run the two different searches -->
-            <button id="vulnerable">Vulnerable Search</button>
-            <button id="protected">Protected Search</button>
-
-            <p id="message"></p>
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <script type="module" src="/client/search.js">
+    </script>
+  </head>
+  <body data-page="search">
+    <a class="skip-link" href="#main">
+      Skip to content
+    </a>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="/">
+          <span class="brand-mark" aria-hidden="true">
+            NS
+          </span>
+          <span>
+            Northstar
+            <strong>
+              Supply
+            </strong>
+            <small>
+              CECS 378, Group 10
+            </small>
+          </span>
+        </a>
+        <nav aria-label="Main navigation">
+          <a href="/search" aria-current="page">
+            Catalog
+          </a>
+          <a id="admin-link" href="/dashboard" hidden>
+            Investigation
+          </a>
+        </nav>
+        <div class="account">
+          <span id="identity" class="identity">
+            Checking session...
+          </span>
+          <button id="logout" class="button secondary" type="button">
+            Sign out
+          </button>
         </div>
-
-        <!-- Show the returned products -->
-        <div class="card">
-            <h2>Search Results</h2>
-            <div id="results"></div>
+      </div>
+    </header>
+    <main id="main" class="page">
+      <div class="session-bar">
+        <p id="session-message" class="notice error" role="alert" hidden>
+        </p>
+        <a id="sign-in-again" href="/login" hidden>
+          Sign in again
+        </a>
+      </div>
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">
+            NORTHSTAR / WORKPLACE ESSENTIALS
+          </p>
+          <h1>
+            Product catalog
+          </h1>
+          <p class="lead">
+            Find the essentials for your workspace.
+          </p>
         </div>
-
+        <span class="badge info">
+          Local SQL demonstration
+        </span>
+      </div>
+      <section class="panel search-panel" aria-labelledby="search-title">
+        <h2 id="search-title">
+          What are you looking for?
+        </h2>
+        <form id="search-form">
+          <label for="search-input">
+            Product name or demonstration input
+          </label>
+          <input id="search-input" name="q" maxlength="100" placeholder="Try Mouse" aria-describedby="search-help" required>
+          <p id="search-help" class="help">
+            1 to 100 characters. Input is passed unchanged. Enter runs the protected query.
+          </p>
+          <div class="actions">
+            <button id="protected" class="button" type="submit" disabled>
+              Protected query
+            </button>
+            <button id="vulnerable" class="button warning-button" type="button" disabled>
+              Vulnerable lab query
+            </button>
+          </div>
+        </form>
+        <div class="mode-notes">
+          <p>
+            <strong>
+              Protected:
+            </strong>
+            binds input as data for this query.
+          </p>
+          <p>
+            <strong>
+              Vulnerable:
+            </strong>
+            deliberately concatenates input. Requires LAB_MODE=true.
+          </p>
+        </div>
+        <p id="message" class="notice" role="status" aria-live="polite">
+          Checking your session...
+        </p>
+      </section>
+      <section aria-labelledby="results-heading">
+        <div class="section-heading">
+          <h2 id="results-heading">
+            Catalog results
+          </h2>
+          <p id="result-count" class="muted" aria-live="polite">
+            No results loaded
+          </p>
+        </div>
+        <div id="results" class="product-grid" aria-busy="false">
+        </div>
+      </section>
     </main>
-
-</body>
+    <footer class="site-footer">
+      Northstar Supply is fictional. This local security demonstration uses SQLite. No real customer data.
+    </footer>
+  </body>
 </html>

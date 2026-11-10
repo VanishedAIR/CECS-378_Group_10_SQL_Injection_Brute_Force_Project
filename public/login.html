@@ -1,36 +1,106 @@
-
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>
+      Sign in - Northstar Supply
+    </title>
     <link rel="stylesheet" href="/style.css">
-    <script type="module" src="/client/login.js"></script>
-</head>
-<body>
-
-    <main class="dashboard">
-        <div class="card">
-            <h1>Security Lab Login</h1>
-            <p>Use a demo account to log in.</p>
-
-            <!-- Login form -->
-            <form id="login-form">
-                <label for="username">Username</label>
-                <input id="username" type="text" required>
-
-                <label for="password">Password</label>
-                <input id="password" type="password" required>
-
-                <button type="submit">Login</button>
-            </form>
-
-            <!-- Show login results here -->
-            <p id="message"></p>
-        </div>
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <script type="module" src="/client/login.js">
+    </script>
+  </head>
+  <body data-page="login">
+    <a class="skip-link" href="#main">
+      Skip to content
+    </a>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="/">
+          <span class="brand-mark" aria-hidden="true">
+            NS
+          </span>
+          <span>
+            Northstar
+            <strong>
+              Supply
+            </strong>
+            <small>
+              CECS 378, Group 10
+            </small>
+          </span>
+        </a>
+        <nav aria-label="Main navigation">
+          <a href="/">
+            About this demo
+          </a>
+        </nav>
+        <a class="button secondary" href="/login">
+          Sign in
+        </a>
+      </div>
+    </header>
+    <main id="main" class="page">
+      <div class="login-layout">
+        <section class="login-intro">
+          <p class="eyebrow">
+            WORKPLACE ESSENTIALS
+          </p>
+          <h1>
+            A better-equipped
+            <br>
+            workday starts here.
+          </h1>
+          <p class="lead">
+            Welcome to Northstar Supply, our fictional office product catalog.
+          </p>
+          <div class="intro-note">
+            <span class="tag">
+              LOCAL DEMONSTRATION
+            </span>
+            <p>
+              Sign in with a seeded demo account. Administrator accounts can also inspect security activity.
+            </p>
+            <p>
+              No public registration. No real customer credentials.
+            </p>
+          </div>
+        </section>
+        <section class="panel login-panel" aria-labelledby="login-title">
+          <p class="eyebrow">
+            ACCOUNT ACCESS
+          </p>
+          <h2 id="login-title">
+            Welcome back
+          </h2>
+          <p class="muted">
+            Use the fictional credentials from the project README.
+          </p>
+          <form id="login-form">
+            <label for="username">
+              Username
+            </label>
+            <input id="username" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus>
+            <label for="password">
+              Password
+            </label>
+            <input id="password" name="password" type="password" autocomplete="current-password" maxlength="128" required aria-describedby="password-note">
+            <p id="password-note" class="help">
+              Password spaces and capitalization are kept as entered.
+            </p>
+            <button id="submit" class="button full" type="submit">
+              Sign in
+            </button>
+            <p id="message" class="notice" role="status" aria-live="polite">
+              Your session stays in this local application.
+            </p>
+          </form>
+        </section>
+      </div>
     </main>
-
-</body>
+    <footer class="site-footer">
+      Northstar Supply is fictional. This local security demonstration uses SQLite. No real customer data.
+    </footer>
+  </body>
 </html>
-

@@ -1,28 +1,103 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Security Lab</title>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        max-width: 40rem;
-        margin: 3rem auto;
-        padding: 0 1rem;
-        line-height: 1.5;
-      }
-    </style>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>
+      Local security demonstration - Northstar Supply
+    </title>
+    <link rel="stylesheet" href="/style.css">
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
   </head>
-  <body>
-    <h1>CECS-378 Security Lab</h1>
-    <p>
-      Foundation server is running. Login, search, and dashboard pages will
-      connect here next.
-    </p>
-    <p>
-      Ediz&rsquo;s Flask prototype layouts remain in <code>templates/</code> for
-      reference until we adapt them under <code>public/</code>.
-    </p>
+  <body data-page="index">
+    <a class="skip-link" href="#main">
+      Skip to content
+    </a>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="/">
+          <span class="brand-mark" aria-hidden="true">
+            NS
+          </span>
+          <span>
+            Northstar
+            <strong>
+              Supply
+            </strong>
+            <small>
+              CECS 378, Group 10
+            </small>
+          </span>
+        </a>
+        <nav aria-label="Main navigation">
+          <a href="/">
+            About this demo
+          </a>
+        </nav>
+        <a class="button secondary" href="/login">
+          Sign in
+        </a>
+      </div>
+    </header>
+    <main id="main" class="page">
+      <section class="welcome">
+        <div>
+          <p class="eyebrow">
+            NORTHSTAR SUPPLY / LOCAL DEMONSTRATION
+          </p>
+          <h1>
+            Everyday products.
+            <br>
+            A closer look at security.
+          </h1>
+          <p class="lead">
+            A fictional workplace catalog connects sign-in, SQL queries, and security evidence in one local application.
+          </p>
+          <a class="button" href="/login">
+            Open the catalog
+          </a>
+        </div>
+        <aside class="panel">
+          <p class="eyebrow">
+            WHAT YOU CAN TRACE
+          </p>
+          <h2>
+            One request. A visible trail.
+          </h2>
+          <ol class="steps">
+            <li>
+              <strong>
+                Sign in
+              </strong>
+              <span>
+                Account and IP rules evaluate login attempts.
+              </span>
+            </li>
+            <li>
+              <strong>
+                Compare queries
+              </strong>
+              <span>
+                Bound parameters and unsafe lab SQL use the same products.
+              </span>
+            </li>
+            <li>
+              <strong>
+                Inspect evidence
+              </strong>
+              <span>
+                An administrator follows alerts to real audit records.
+              </span>
+            </li>
+          </ol>
+          <p class="notice warning">
+            The vulnerable query is intentional and only available with LAB_MODE enabled. Run this app on localhost.
+          </p>
+        </aside>
+      </section>
+    </main>
+    <footer class="site-footer">
+      Northstar Supply is fictional. This local security demonstration uses SQLite. No real customer data.
+    </footer>
   </body>
 </html>
