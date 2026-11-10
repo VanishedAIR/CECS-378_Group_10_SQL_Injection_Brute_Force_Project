@@ -1,7 +1,3 @@
-import { executeAuditedSearch } from "../src/server/search.js";
-import { createFakeClock } from "../src/server/clock.js";
-import { applySchema } from "../src/server/db.js";
-import { getQueryAuditById, readAlertEvidence } from "../src/server/audit.js";
 import { afterEach, describe, expect, it } from "vitest";
 import { DatabaseSync } from "node:sqlite";
 import { protectedSearch, vulnerableSearch } from "../src/server/search.js";
@@ -52,7 +48,7 @@ describe("Protected product search", () => {
 
     expect(protectedSearch(db, "Laptop")).toEqual([]);
   });
-  
+
 it("vulnerable search returns a normal product", () => {
   setupDatabase();
 
