@@ -1,240 +1,112 @@
-# CECS-378 Group 10 — SQL Injection and Login Protection Lab
+# Northstar Supply ? CECS 378 Group 10
 
-Local TypeScript/Express + SQLite security lab. Ediz's Flask/Jinja files (`templates/`, `app.py`, `static/style.css`) stay in the repo as the UI reference. The running app is the TypeScript server.
+A fictional workplace catalog and security investigation app. HTML/CSS and browser TypeScript talk to Express on localhost; SQLite stores accounts, products, login attempts, query evidence, alerts, and cooldowns. No CDN, public signup, or cloud database is needed.
 
-## Requirements
+## Start locally
 
-- **Node.js 24.x** (`.nvmrc` and `package.json` `volta` pin **24.21.0**). `.npmrc` sets `engine-strict=true`.
-- Copy `.env.example` to `.env`. Do not commit `.env`.
-
-## Fresh clone
+Use **Node 24.21.0** (pinned in `.nvmrc` and `package.json`; `.npmrc` enforces Node 24). Run commands from the project root. If PowerShell blocks `npm.ps1`, use `npm.cmd`.
 
 ```powershell
-cd CECS-378_Group_10_SQL_Injection_Brute_Force_Project
 nvm use 24.21.0
-node --version # must print v24.21.0
-copy .env.example .env # fresh checkout only; preserve an existing .env
+node --version # v24.21.0
 npm ci
+if (!(Test-Path -LiteralPath .env)) { Copy-Item -LiteralPath .env.example -Destination .env }
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+```
+
+Before starting, copy that freshly generated value into **your local** `.env` as `SESSION_SECRET`. It must be at least 32 characters. Keep the existing file and its other settings; do not overwrite it, commit it, reuse a published secret, or share the generated value. The example contains only a blank placeholder. For an isolated run, a process environment variable can supply the secret without creating `.env`.
+
+Choose `LOGIN_MODE=observe` or `protect`, and set `LAB_MODE=true` only for the intentionally vulnerable localhost demonstration. With the default `LAB_MODE=false`, authenticated vulnerable searches return 404. There is no HTTP mode-switch endpoint. Restart after changing server settings.
+
+```powershell
 npm run db:seed
 npm run dev
 ```
 
-If PowerShell blocks `npm.ps1`, use `npm.cmd` instead.
+Open **http://127.0.0.1:3000/**. `predev` builds server and browser TypeScript before the server starts, including on a fresh checkout with no `dist`. `/health` is the health endpoint. Shell settings take precedence over `.env`; code defaults apply after those. `HOST` accepts only loopback addresses. The default SQLite file is `./data/lab.db`.
 
-### Environment variables
+### Editing and compiled startup
 
-`loadConfig()` calls `loadDotEnv()` first:
+While `npm run dev` is running, open a second terminal in the same root:
 
-1. Values already in the process environment win.
-2. Missing values are filled from `.env`.
-3. Anything still missing uses the defaults in `.env.example`.
+```powershell
+npm run watch
+```
 
-`HOST` must be loopback (`127.0.0.1`, `localhost`, or `::1`). `LOGIN_MODE` is `observe` or `protect`. `LAB_MODE` is `true` or `false`. There is no HTTP endpoint that changes these.
+The compiler re-emits browser modules into `dist/src/client` after edits. Reload the browser to see them; there is no hot reload. The watcher also compiles server code, but the running tsx server must be restarted for server changes. Without the watcher, run `npm run build` and reload after browser edits. To run compiled output, use `npm run build` followed by `npm start`. Stop both terminal commands with Ctrl+C.
 
-`db:seed` creates `./data/lab.db`, applies `schema.sql`, and inserts **Mouse**, **Keyboard**, and **Monitor**. It also creates the two fictional demo accounts below using Bin's `hashPassword`. Existing usernames are reported as **Skipped**: their passwords, display names and roles are preserved, so the documented credentials and expected roles are not guaranteed for those rows. Repeated seeds preserve audit records and cooldowns. `db:reset` clears login, query, alert, and cooldown rows in a transaction and restores those three products. It is a CLI only. Startup does not reset the database.
+## Fictional accounts and data
 
-`db:check:neon` is an optional PostgreSQL connectivity check. The application database remains SQLite.
-
-
-## Frontend and session setup
-
-The application uses TypeScript for the server and browser pages.
-
-### Set up the session secret
-
-1. Copy `.env.example` to `.env` if `.env` does not already exist.
-2. Generate a random secret using:
-
-   `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`
-
-3. Copy the generated value into your local `.env` file:
-
-   `SESSION_SECRET=your_generated_secret_here`
-
-4. Never commit `.env` or share your actual session secret.
-
-The server requires a session secret of at least 32 characters.
-
-### Build the frontend
-
-The browser TypeScript files are:
-
-- `src/client/login.ts`
-- `src/client/search.ts`
-- `src/client/dashboard.ts`
-
-Running `npm run build` compiles these files into `dist/src/client`.
-
-The server serves the compiled JavaScript through `/client`.
-
-Run `npm run dev` to build the frontend and start the server.
-
-### Dashboard access
-
-The security dashboard is available at `/dashboard`.
-
-Only authenticated administrators can access dashboard pages and API endpoints.
-
-Unauthenticated users receive HTTP 401. Regular users receive HTTP 403.
-
-
-## Commands
-
-| Script | What it does |
-| --- | --- |
-| `npm run dev` | Build the frontend and start the TypeScript server |
-| `npm run build` / `npm start` | Compile, then run `dist/` |
-| `npm run typecheck` | Typecheck without emitting |
-| `npm test` | Vitest |
-| `npm run db:seed` | Apply schema and seed products plus missing demo accounts |
-| `npm run db:reset` | Clear evidence and restore products |
-| `npm run db:check:neon` | Optional Neon check (needs `DATABASE_URL` in `.env`) |
-| `npm run demo:sql` | Demonstrate vulnerable/protected searches, auditing, and SQL injection alerts |
-
-Open **http://127.0.0.1:3000/** and **http://127.0.0.1:3000/health**.
-
-## Fictional localhost demo accounts
-
-These public passwords are for this local lab only. Do not reuse real credentials.
+These public credentials are for the localhost demonstration only. Never reuse real credentials.
 
 | Username | Demo-only password | Role |
 | --- | --- | --- |
-| `demo_user` | `DemoUser123!` | `user` |
-| `demo_admin` | `DemoAdmin123!` | `admin` |
+| `demo_user` | `DemoUser123!` | user |
+| `demo_admin` | `DemoAdmin123!` | admin |
 
-Run `npm run db:seed` before starting the server. It uses `DATABASE_PATH` from the shell, then `.env`, then `./data/lab.db`. It never connects to Neon. Only encoded password hashes enter SQLite; credentials are not printed by the command. If a username is skipped, inspect it and use its existing credentials; seeding never resets it. The broader five-account IP demonstration remains outside this two-account contribution.
+Seeding applies the schema, restores Mouse/Keyboard/Monitor, and inserts missing accounts in one transaction. It uses Bin's shared `hashPassword` (salted scrypt); only hashes enter SQLite. Existing usernames are **Skipped**, with passwords, display names, roles, and audit history unchanged. For skipped rows the public credentials and expected role are not guaranteed. The two seeded accounts do not provide the five distinct identities used in the optional IP-wide presentation scenario.
 
-Flow to present: **seed command -> password hashing -> SQLite insert -> login lookup**. `db:seed` loads the shared config, opens SQLite and applies the schema. Products and missing accounts seed in one transaction. `requireUsernameKey` normalizes each username; Bin's `hashPassword` generates a salted scrypt hash. A parameterized insert stores the username, display name, hash and role. Bin's login code will look up `users` by normalized `username_key` using a bound parameter, pass the submitted password and `password_hash` to `verifyPassword`, then use the row's ID and role for the session. Login and session authentication are implemented separately from account seeding. The seed command creates demo accounts but does not handle authentication.
+`npm run db:reset` deliberately clears evidence/cooldowns and restores products in one transaction, preserving users. It is a CLI only and never runs on server startup. Do not run reset against a database whose evidence you need to keep.
 
-### Verify without touching an existing database
-
-Use Node **24.21.0**. The focused tests run the actual seed CLI against temporary SQLite files, check products, both roles and passwords with Bin's verifier, rerun and compare every account and audit row, and check conflicting usernames with different passwords and roles.
+Inspect usernames and roles without printing hashes (this reads the default file; change the path explicitly for a different database):
 
 ```powershell
-nvm use 24.21.0
-node --version
-npm ci
-npm test -- tests/seedAccounts.test.ts
+node --input-type=module -e "import {DatabaseSync} from 'node:sqlite'; const db=new DatabaseSync('./data/lab.db',{readOnly:true}); console.table(db.prepare('SELECT username_key, display_username, role FROM users ORDER BY username_key').all()); db.close();"
+```
+
+## Presentation flow
+
+1. Sign in as `demo_user`. Login returns the agreed `/search` redirect for both roles.
+2. Search `Mouse`: each query mode returns one product. Search `' OR 1=1 --`: vulnerable returns three products; protected returns zero. Input stays unchanged, 1?100 characters. The protected query binds it as data; this does not claim every possible part of the app is secure.
+3. Sign out, sign in as `demo_admin`, and use **Investigation** in the navigation. Regular users receive 403 from admin APIs, regardless of visible navigation.
+4. Overview totals cover all retained history. Click a login/alert card to filter only the newest **up to 20** records loaded for each list. Text, type, scope, and outcome controls combine over those loaded records. Visible counts say how many loaded rows match. **Clear filters** resets them; it does not erase database rows.
+5. **Inspect** opens linked evidence: SQL input/template/parameters/executed lab SQL or the exact contributing login attempts and threshold window. Detection is evidence of a supported suspicious pattern, not proof that an attack succeeded.
+6. **Refresh snapshot** gets current data, preserves filters, and closes old details. Cooldown seconds are explicitly labeled at capture; refresh to check expiry. Counts can exceed the number of loaded rows. There is no fake analytics or full-history browser search.
+7. In Protect mode, five failed logins for one username trigger its cooldown. A subsequent login returns 429 with a numeric delay and matching `Retry-After`; the login form shows the delay and avoids automatic retries. The IP threshold remains 15 failures. Observe mode records threshold alerts without blocking.
+
+The dashboard validates access on loading and every 30 seconds. Any detected 401/403, failed validation, or logout clears loaded data; in-flight old responses cannot restore it. Sessions expire **server-side** exactly 30 minutes after login even after active requests. The UI shows a timestamped snapshot, not a live feed; local display cleanup is not the enforcement boundary. Sign-out waits for empty 204 and reports failures instead of claiming success.
+
+## APIs and shared code
+
+| Area | Main files | Behavior |
+| --- | --- | --- |
+| Startup/storage | `app.ts`, `config.ts`, `db.ts`, `schemaMigrate.ts`, `schema.sql` | One shared database/config/clock; loopback only; non-destructive migrations |
+| Authentication | `passwords.ts`, `authRoutes.ts`, `authMiddleware.ts`, `sessions.ts`, `loginPolicy.ts` | Bin's password/session helpers; current database roles; absolute expiry; account/IP policy |
+| Search/evidence | `searchRoutes.ts`, `search.ts`, `sqlDetector.ts`, `audit.ts` | Dean's two query modes, signatures, parameterized audit writers and linked evidence |
+| Investigation | `dashboard.ts`, `src/client/dashboard*.ts` | Admin-only totals, recent records, scope filters and structured detail |
+| Browser | `public/`, `src/client/`, `static/style.css` | Northstar Supply pages; shared access/logout and plain-text rendering |
+
+Server filenames in the table are under `src/server`. Audit writers do not own transactions; callers group related writes in `withTransaction`. Passwords are not trimmed. Client-supplied roles/IDs never authorize requests. Existing API shapes are preserved:
+
+- `POST /api/login` ? `{ user, redirectTo }`; `GET /api/me` ? `{ user }`; `POST /api/logout` ? empty 204.
+- `GET /api/search/protected?q=...` and `/api/search/vulnerable?q=...` ? `{ mode, rows, resultCount }`.
+- `GET /api/dashboard`, `/api/cooldowns`, `/api/alerts/:id` require current administrator access. Alert detail joins its stored login/query evidence.
+- Errors use `{ error: { code, message } }`; 429 additionally returns `retryAfterSeconds`. SQL failures return a generic 500 while recording one failed query audit.
+
+The deliberately unsafe query exists only for the lab. Protected evidence contains fixed SQL and parameters with `labSql=null`. Vulnerable evidence separates the never-executed `%{q}%` descriptive template from the actual executed lab SQL. SQL text is exposed only through authorized evidence routes.
+
+## Commands and checks
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Initial build, then local tsx server |
+| `npm run watch` | Recompile after edits; reload browser/restart server as described above |
+| `npm run build` / `npm start` | Compile / run compiled server |
+| `npm run typecheck` | Check TypeScript without emitting |
+| `npm test` | All Vitest tests, including browser-controller regressions |
+| `npm run db:seed` / `npm run db:reset` | Seed / explicitly reset local evidence |
+| `npm run demo:sql` | In-memory SQL comparison: four audits, two SQL alerts |
+| `npm run demo:login` | In-memory policy demo with simulated verification and a fake clock |
+| `npm run db:check:neon` | Optional standalone PostgreSQL probe; requires DATABASE_URL; never used by app startup |
+
+```powershell
 npm run typecheck
+npm test -- tests/client.test.ts
 npm test
 npm run build
-```
-
-For a manual temporary seed and an inspection that never displays hashes:
-
-```powershell
-$savedSeedDatabasePath = $env:DATABASE_PATH
-$demoSeedPath = Join-Path ([System.IO.Path]::GetTempPath()) ("cecs378-demo-" + [guid]::NewGuid() + ".db")
-try {
-  $env:DATABASE_PATH = $demoSeedPath
-  npm run db:seed
-  npm run db:seed # accounts are reported as skipped, never recreated
-  @'
-import { DatabaseSync } from "node:sqlite";
-const db = new DatabaseSync(process.env.DATABASE_PATH, { readOnly: true });
-console.table(db.prepare("SELECT username_key, display_username, role FROM users ORDER BY username_key").all());
-db.close();
-'@ | node --input-type=module
-} finally {
-  $env:DATABASE_PATH = $savedSeedDatabasePath
-  Remove-Item -LiteralPath $demoSeedPath -ErrorAction SilentlyContinue
-}
-```
-
-To inspect the normal local lab database, use the same read-only query with `DATABASE_PATH` set to its SQLite file. It selects only usernames and roles. Keep `.env` and generated database files out of Git.
-
-## Shared modules for teammates
-
-Every route module receives the same `AppDependencies` object (`db`, `config`, `clock`). Do not open a second database. Register a router by appending a factory to `moduleRouters` in `src/server/app.ts` when your file exists:
-
-```typescript
-moduleRouters.push((deps) => createAuthRouter(deps));
-```
-
-| Module | Use it for |
-| --- | --- |
-| `db.ts` | `openDatabase`, `applySchema`, `withTransaction`, `withDatabase` |
-| `audit.ts` | Insert and read login attempts, query rows, and security events. Writers do not start transactions. |
-| `normalize.ts` | Username key and source IP. Never pass a password to the username helper. |
-| `clock.ts` | `systemClock()` or `createFakeClock(start)` in tests |
-| `http.ts` | Request id, socket IP, JSON error envelope |
-| `config.ts` | `loadConfig()` |
-| `resetLab.ts` | CLI reset only |
-
-Audit writes belong inside the caller's `withTransaction`. Bin decides login outcomes and threshold crossings. real thd decides SQL indicators. Ediz reads evidence; he does not invent a second insert path.
-
-Agent notes stay on the `context-docs` branch. Do not commit `.context/` from a feature branch.
-
-## SQL Injection Module
-
-The SQL injection module demonstrates the difference between unsafe SQL string concatenation and parameterized queries.
-
-### Search endpoints
-
-- `GET /api/search/protected?q=Mouse`
-- `GET /api/search/vulnerable?q=Mouse`
-
-Both endpoints require an authenticated user.
-
-The vulnerable endpoint is intended only for local demonstrations and is available when `LAB_MODE=true`. The protected endpoint is always available to authenticated users.
-
-**Integration status:** Both search endpoints use the shared session authentication middleware. Unauthenticated requests return HTTP 401, while authenticated users can access the appropriate search endpoints.
-
-### Search behavior
-
-The vulnerable search directly inserts user input into its SQL statement. This allows a specially crafted input to change the query's meaning.
-
-The protected search uses a parameterized SQLite query, so user input is handled as data rather than executable SQL.
-
-| Search input | Vulnerable results | Protected results |
-| --- | --- | --- |
-| `Mouse` | 1 | 1 |
-| `' OR 1=1 --` | 3 | 0 |
-
-### SQL injection detection
-
-The detector checks search inputs for three indicators:
-
-- `sql_comment`: SQL comment syntax
-- `union_select`: UNION SELECT statements
-- `boolean_tautology`: OR 1=1 patterns
-
-Detection runs on both search modes. A suspicious input can generate an alert even when the protected query prevents exploitation.
-
-### Query auditing and alerts
-
-Each executed search creates a `query_audit` record containing the request ID, user ID, source IP, search mode, input excerpt, result count, duration, and error information.
-
-Detected SQL injection patterns generate a `SQLI_ATTEMPT` security event linked to the corresponding query audit record.
-
-Database execution errors are recorded without exposing SQL statements or stack traces through the API.
-
-### SQL demonstration
-
-Run:
-
-```powershell
 npm run demo:sql
 ```
 
-The script creates an in-memory SQLite database, seeds three fictional products, and demonstrates normal searches and SQL injection attempts against both search modes.
+Tests create temporary/in-memory databases. Controller tests use a minimal event/text DOM and do **not** prove browser rendering, accessibility, console cleanliness, or the full cookie flow. A final browser check should sign in with both roles, compare searches, inspect real evidence, exercise filters, test logout/cooldown, and check a narrow viewport and keyboard focus.
 
-Expected totals:
-
-- 4 query audit records
-- 2 SQL injection alerts
-
-The demonstration does not modify the application's persistent database.
-
-### Testing
-
-Run:
-
-```powershell
-npm run typecheck
-npm test
-```
-
-The SQL injection module includes tests for protected and vulnerable searches, SQL injection detection, auditing, security alerts, authenticated and unauthenticated HTTP requests, input validation, LAB_MODE restrictions, and database error handling.
-
-Final verification: 89 automated tests passed across 14 test files. TypeScript typechecking, production build, and the SQL demonstration also passed.
+For an isolated manual setup, set `$env:DATABASE_PATH` to a new path in your temporary directory and `$env:SESSION_SECRET` to a newly generated test-only value **before** seeding/starting. Do not use a personal `.env` or existing database for verification. Neon is not needed. Keep `.env`, runtime databases, `dist`, dependencies, logs, and private context out of Git.
