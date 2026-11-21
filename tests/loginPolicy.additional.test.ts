@@ -13,7 +13,7 @@ const config: ServerConfig = {
 const fail = async () => ({ valid: false, userId: null });
 const success = async () => ({ valid: true, userId: null });
 
-describe("Bin additional login-policy checks", () => {
+describe("Huy additional login-policy checks", () => {
   it("blocked attempts do not count as failures or extend cooldown", async () => {
     const db = new DatabaseSync(":memory:");
     try {

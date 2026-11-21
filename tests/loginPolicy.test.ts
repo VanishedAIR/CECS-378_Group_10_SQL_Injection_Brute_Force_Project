@@ -21,7 +21,7 @@ function count(table: string) { return (db.prepare(`SELECT COUNT(*) AS n FROM ${
 beforeEach(() => { db = new DatabaseSync(":memory:"); applySchema(db); clock = createFakeClock(1000000); sequence = 0; });
 afterEach(() => db.close());
 
-describe("Bin login policy", () => {
+describe("Huy login policy", () => {
   it("triggers account on fifth failure, then blocks sixth without verifying", async () => {
     const policy = createLoginPolicy(db, base, clock);
     for (let i = 0; i < 4; i++) expect((await policy.evaluate(request(), failure)).eventIds).toEqual([]);

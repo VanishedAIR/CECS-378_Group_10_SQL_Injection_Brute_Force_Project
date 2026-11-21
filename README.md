@@ -1,112 +1,124 @@
-# Northstar Supply ? CECS 378 Group 10
+# Northstar Supply - CECS 378 Group 10
 
-A fictional workplace catalog and security investigation app. HTML/CSS and browser TypeScript talk to Express on localhost; SQLite stores accounts, products, login attempts, query evidence, alerts, and cooldowns. No CDN, public signup, or cloud database is needed.
+Northstar Supply is a fictional office-supply catalog built to demonstrate two common web attacks and how to defend against them:
 
-## Start locally
+- **SQL injection**: the same product search runs as a parameterized (protected) query and as a deliberately unsafe (vulnerable) query, so the results can be compared side by side.
+- **Brute-force login**: failed logins are tracked per account and per IP address, with an Observe mode that only raises alerts and a Protect mode that also applies a temporary cooldown.
 
-Use **Node 24.21.0** (pinned in `.nvmrc` and `package.json`; `.npmrc` enforces Node 24). Run commands from the project root. If PowerShell blocks `npm.ps1`, use `npm.cmd`.
+An administrator dashboard shows the resulting alerts and links each one back to the stored login attempts or query record that caused it.
+
+The app runs entirely on localhost: an Express server written in TypeScript, plain HTML/CSS pages, and a local SQLite database. No cloud services or external accounts are required.
+
+## Requirements
+
+- Node.js 24 (the project pins 24.21.0 in `.nvmrc`)
+- npm
+
+## Getting started
 
 ```powershell
-nvm use 24.21.0
-node --version # v24.21.0
 npm ci
-if (!(Test-Path -LiteralPath .env)) { Copy-Item -LiteralPath .env.example -Destination .env }
+Copy-Item .env.example .env        # macOS/Linux: cp .env.example .env
 node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 ```
 
-Before starting, copy that freshly generated value into **your local** `.env` as `SESSION_SECRET`. It must be at least 32 characters. Keep the existing file and its other settings; do not overwrite it, commit it, reuse a published secret, or share the generated value. The example contains only a blank placeholder. For an isolated run, a process environment variable can supply the secret without creating `.env`.
-
-Choose `LOGIN_MODE=observe` or `protect`, and set `LAB_MODE=true` only for the intentionally vulnerable localhost demonstration. With the default `LAB_MODE=false`, authenticated vulnerable searches return 404. There is no HTTP mode-switch endpoint. Restart after changing server settings.
+Paste the generated value into `.env` as `SESSION_SECRET`, then seed the database and start the server:
 
 ```powershell
 npm run db:seed
 npm run dev
 ```
 
-Open **http://127.0.0.1:3000/**. `predev` builds server and browser TypeScript before the server starts, including on a fresh checkout with no `dist`. `/health` is the health endpoint. Shell settings take precedence over `.env`; code defaults apply after those. `HOST` accepts only loopback addresses. The default SQLite file is `./data/lab.db`.
+Open http://127.0.0.1:3000/. On Windows, use `npm.cmd` if PowerShell blocks `npm`.
 
-### Editing and compiled startup
+## Demo accounts
 
-While `npm run dev` is running, open a second terminal in the same root:
+These fictional accounts are created by `npm run db:seed`. Running the seed again leaves existing accounts and history unchanged.
 
-```powershell
-npm run watch
-```
-
-The compiler re-emits browser modules into `dist/src/client` after edits. Reload the browser to see them; there is no hot reload. The watcher also compiles server code, but the running tsx server must be restarted for server changes. Without the watcher, run `npm run build` and reload after browser edits. To run compiled output, use `npm run build` followed by `npm start`. Stop both terminal commands with Ctrl+C.
-
-## Fictional accounts and data
-
-These public credentials are for the localhost demonstration only. Never reuse real credentials.
-
-| Username | Demo-only password | Role |
+| Username | Password | Role |
 | --- | --- | --- |
 | `demo_user` | `DemoUser123!` | user |
 | `demo_admin` | `DemoAdmin123!` | admin |
 
-Seeding applies the schema, restores Mouse/Keyboard/Monitor, and inserts missing accounts in one transaction. It uses Bin's shared `hashPassword` (salted scrypt); only hashes enter SQLite. Existing usernames are **Skipped**, with passwords, display names, roles, and audit history unchanged. For skipped rows the public credentials and expected role are not guaranteed. The two seeded accounts do not provide the five distinct identities used in the optional IP-wide presentation scenario.
+## Features
 
-`npm run db:reset` deliberately clears evidence/cooldowns and restores products in one transaction, preserving users. It is a CLI only and never runs on server startup. Do not run reset against a database whose evidence you need to keep.
+- **Catalog search.** Signed-in users can search the products. The protected query binds the input as a parameter. The vulnerable query concatenates it into the SQL string and only works when `LAB_MODE=true`; otherwise it returns 404.
+- **SQL injection detection.** Every search is recorded with its input, SQL template, bound parameters, and row count. Inputs that match known patterns (comments, `UNION SELECT`, `OR 1=1`) also create an alert linked to that record. An alert means the pattern was seen, not that the attack succeeded.
+- **Login protection.** Five failures for one account, or fifteen from one IP, within 60 seconds raises an alert. In Protect mode that account or IP is then blocked for 60 seconds and further attempts receive `429 Too Many Requests`.
+- **Investigation dashboard.** Administrators see overall totals, the 20 most recent alerts and login attempts, active cooldowns, and the evidence behind each alert. Regular users receive 403 from every admin route.
+- **Sessions.** Passwords are stored as salted scrypt hashes. Sessions expire 30 minutes after login, and signing out invalidates the session on the server.
 
-Inspect usernames and roles without printing hashes (this reads the default file; change the path explicitly for a different database):
+## Configuration
 
-```powershell
-node --input-type=module -e "import {DatabaseSync} from 'node:sqlite'; const db=new DatabaseSync('./data/lab.db',{readOnly:true}); console.table(db.prepare('SELECT username_key, display_username, role FROM users ORDER BY username_key').all()); db.close();"
-```
+Settings are read from `.env` (see `.env.example`). Restart the server after changing them.
 
-## Presentation flow
-
-1. Sign in as `demo_user`. Login returns the agreed `/search` redirect for both roles.
-2. Search `Mouse`: each query mode returns one product. Search `' OR 1=1 --`: vulnerable returns three products; protected returns zero. Input stays unchanged, 1?100 characters. The protected query binds it as data; this does not claim every possible part of the app is secure.
-3. Sign out, sign in as `demo_admin`, and use **Investigation** in the navigation. Regular users receive 403 from admin APIs, regardless of visible navigation.
-4. Overview totals cover all retained history. Click a login/alert card to filter only the newest **up to 20** records loaded for each list. Text, type, scope, and outcome controls combine over those loaded records. Visible counts say how many loaded rows match. **Clear filters** resets them; it does not erase database rows.
-5. **Inspect** opens linked evidence: SQL input/template/parameters/executed lab SQL or the exact contributing login attempts and threshold window. Detection is evidence of a supported suspicious pattern, not proof that an attack succeeded.
-6. **Refresh snapshot** gets current data, preserves filters, and closes old details. Cooldown seconds are explicitly labeled at capture; refresh to check expiry. Counts can exceed the number of loaded rows. There is no fake analytics or full-history browser search.
-7. In Protect mode, five failed logins for one username trigger its cooldown. A subsequent login returns 429 with a numeric delay and matching `Retry-After`; the login form shows the delay and avoids automatic retries. The IP threshold remains 15 failures. Observe mode records threshold alerts without blocking.
-
-The dashboard validates access on loading and every 30 seconds. Any detected 401/403, failed validation, or logout clears loaded data; in-flight old responses cannot restore it. Sessions expire **server-side** exactly 30 minutes after login even after active requests. The UI shows a timestamped snapshot, not a live feed; local display cleanup is not the enforcement boundary. Sign-out waits for empty 204 and reports failures instead of claiming success.
-
-## APIs and shared code
-
-| Area | Main files | Behavior |
+| Variable | Default | Purpose |
 | --- | --- | --- |
-| Startup/storage | `app.ts`, `config.ts`, `db.ts`, `schemaMigrate.ts`, `schema.sql` | One shared database/config/clock; loopback only; non-destructive migrations |
-| Authentication | `passwords.ts`, `authRoutes.ts`, `authMiddleware.ts`, `sessions.ts`, `loginPolicy.ts` | Bin's password/session helpers; current database roles; absolute expiry; account/IP policy |
-| Search/evidence | `searchRoutes.ts`, `search.ts`, `sqlDetector.ts`, `audit.ts` | Dean's two query modes, signatures, parameterized audit writers and linked evidence |
-| Investigation | `dashboard.ts`, `src/client/dashboard*.ts` | Admin-only totals, recent records, scope filters and structured detail |
-| Browser | `public/`, `src/client/`, `static/style.css` | Northstar Supply pages; shared access/logout and plain-text rendering |
+| `SESSION_SECRET` | (required) | Random string of at least 32 characters |
+| `HOST` / `PORT` | `127.0.0.1` / `3000` | Listen address; only loopback addresses are accepted |
+| `DATABASE_PATH` | `./data/lab.db` | SQLite file location |
+| `LOGIN_MODE` | `observe` | `observe` (alerts only) or `protect` (alerts and cooldowns) |
+| `LAB_MODE` | `false` | Set to `true` to enable the vulnerable search |
+| `ACCOUNT_FAILURE_LIMIT` / `IP_FAILURE_LIMIT` | `5` / `15` | Failures that trigger an alert |
+| `WINDOW_SECONDS` | `60` | Rolling window for counting failures |
+| `ACCOUNT_COOLDOWN_SECONDS` / `IP_COOLDOWN_SECONDS` | `60` / `60` | Cooldown length in Protect mode |
+| `DATABASE_URL` | (empty) | Optional; only used by `npm run db:check:neon` |
 
-Server filenames in the table are under `src/server`. Audit writers do not own transactions; callers group related writes in `withTransaction`. Passwords are not trimmed. Client-supplied roles/IDs never authorize requests. Existing API shapes are preserved:
+## Scripts
 
-- `POST /api/login` ? `{ user, redirectTo }`; `GET /api/me` ? `{ user }`; `POST /api/logout` ? empty 204.
-- `GET /api/search/protected?q=...` and `/api/search/vulnerable?q=...` ? `{ mode, rows, resultCount }`.
-- `GET /api/dashboard`, `/api/cooldowns`, `/api/alerts/:id` require current administrator access. Alert detail joins its stored login/query evidence.
-- Errors use `{ error: { code, message } }`; 429 additionally returns `retryAfterSeconds`. SQL failures return a generic 500 while recording one failed query audit.
-
-The deliberately unsafe query exists only for the lab. Protected evidence contains fixed SQL and parameters with `labSql=null`. Vulnerable evidence separates the never-executed `%{q}%` descriptive template from the actual executed lab SQL. SQL text is exposed only through authorized evidence routes.
-
-## Commands and checks
-
-| Command | Purpose |
+| Command | Description |
 | --- | --- |
-| `npm run dev` | Initial build, then local tsx server |
-| `npm run watch` | Recompile after edits; reload browser/restart server as described above |
-| `npm run build` / `npm start` | Compile / run compiled server |
-| `npm run typecheck` | Check TypeScript without emitting |
-| `npm test` | All Vitest tests, including browser-controller regressions |
-| `npm run db:seed` / `npm run db:reset` | Seed / explicitly reset local evidence |
-| `npm run demo:sql` | In-memory SQL comparison: four audits, two SQL alerts |
-| `npm run demo:login` | In-memory policy demo with simulated verification and a fake clock |
-| `npm run db:check:neon` | Optional standalone PostgreSQL probe; requires DATABASE_URL; never used by app startup |
+| `npm run dev` | Build, then start the development server |
+| `npm run build` / `npm start` | Compile TypeScript / run the compiled server |
+| `npm run watch` | Recompile on file changes |
+| `npm run typecheck` | Type-check without emitting files |
+| `npm test` | Run the Vitest test suite |
+| `npm run db:seed` | Create the schema, products, and demo accounts |
+| `npm run db:reset` | Clear login attempts, search records, alerts, and cooldowns (keeps users) |
+| `npm run demo:sql` | In-memory comparison of protected and vulnerable queries |
+| `npm run demo:login` | In-memory demonstration of the login policy |
+| `npm run db:check:neon` | Optional PostgreSQL connection check |
 
-```powershell
-npm run typecheck
-npm test -- tests/client.test.ts
-npm test
-npm run build
-npm run demo:sql
+Tests use temporary or in-memory databases and never touch `data/lab.db`.
+
+## Project structure
+
+```text
+public/          HTML pages (home, login, search, dashboard)
+static/          Stylesheet
+src/client/      Browser TypeScript for each page
+src/server/      Express server, authentication, search, auditing, dashboard
+scripts/         Seed, reset, and demo command-line scripts
+tests/           Vitest tests
+schema.sql       SQLite schema
 ```
 
-Tests create temporary/in-memory databases. Controller tests use a minimal event/text DOM and do **not** prove browser rendering, accessibility, console cleanliness, or the full cookie flow. A final browser check should sign in with both roles, compare searches, inspect real evidence, exercise filters, test logout/cooldown, and check a narrow viewport and keyboard focus.
+## API
 
-For an isolated manual setup, set `$env:DATABASE_PATH` to a new path in your temporary directory and `$env:SESSION_SECRET` to a newly generated test-only value **before** seeding/starting. Do not use a personal `.env` or existing database for verification. Neon is not needed. Keep `.env`, runtime databases, `dist`, dependencies, logs, and private context out of Git.
+| Method and path | Access | Description |
+| --- | --- | --- |
+| `POST /api/login` | public | Sign in; returns the user and a redirect path |
+| `POST /api/logout` | signed in | End the session (204) |
+| `GET /api/me` | signed in | Current user |
+| `GET /api/search/protected?q=` | signed in | Parameterized product search |
+| `GET /api/search/vulnerable?q=` | signed in, `LAB_MODE=true` | Unsafe product search |
+| `GET /api/dashboard` | admin | Totals and recent activity |
+| `GET /api/cooldowns` | admin | Active cooldowns |
+| `GET /api/alerts/:id` | admin | One alert with its linked evidence |
+
+Errors use the shape `{ "error": { "code", "message" } }`.
+
+## Team
+
+| Member | Area | Main files |
+| --- | --- | --- |
+| Vansh | Database and integration | `db.ts`, `audit.ts`, `app.ts`, `schema.sql` |
+| Huy | Authentication and login protection | `passwords.ts`, `authRoutes.ts`, `authMiddleware.ts`, `sessions.ts`, `loginPolicy.ts` |
+| Dean | SQL injection search | `search.ts`, `searchRoutes.ts`, `sqlDetector.ts` |
+| Ediz | Investigation dashboard | `dashboard.ts`, `src/client/dashboard*.ts` |
+
+Server files are in `src/server/`.
+
+## Disclaimer
+
+This project was built for a university security course. The vulnerable query is intentional and is disabled by default. Run the app only on your own machine, and do not reuse the demo credentials anywhere else.
